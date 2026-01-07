@@ -1,15 +1,21 @@
 <!-- This should be the location of the title of the repository, normally the short name -->
-# repo-template
+# RAG HPO Bench (Under construction)
 
 <!-- Build Status, is a great thing to have at the top of your repository, it shows that you take your CI/CD as first class citizens -->
 <!-- [![Build Status](https://travis-ci.org/jjasghar/ibm-cloud-cli.svg?branch=master)](https://travis-ci.org/jjasghar/ibm-cloud-cli) -->
 
 <!-- Not always needed, but a scope helps the user understand in a short sentance like below, why this repo exists -->
-## Scope
 
-The purpose of this project is to provide a template for new open source repositories.
 
-<!-- A more detailed Usage or detailed explaination of the repository here -->
+This project contains the grid results of the paper 
+[An Analysis of Hyper-Parameter Optimization Methods for Retrieval Augmented Generation](https://arxiv.org/abs/2505.03452).
+
+To our
+knowledge, we are the first to release such a resource for
+RAG. Building on these results, further research can explore
+new HPO techniques without incurring the substantial cost
+of running many RAG configuration across datasets.
+
 ## Usage
 
 This repository contains some example best practices for open source repositories:
@@ -24,13 +30,6 @@ This repository contains some example best practices for open source repositorie
 
 > These are optional
 
-<!-- The following are OPTIONAL, but strongly suggested to have in your repository. -->
-* [dco.yml](.github/dco.yml) - This enables DCO bot for you, please take a look https://github.com/probot/dco for more details.
-* [travis.yml](.travis.yml) - This is a example `.travis.yml`, please take a look https://docs.travis-ci.com/user/tutorial/ for more details.
-
-These may be copied into a new or existing project to make it easier for developers not on a project team to collaborate.
-
-<!-- A notes section is useful for anything that isn't covered in the Usage or Scope. Like what we have below. -->
 ## Notes
 
 **NOTE: While this boilerplate project uses the Apache 2.0 license, when
@@ -57,22 +56,14 @@ example:
 
 ## License
 
-All source files must include a Copyright and License header. The SPDX license header is 
-preferred because it can be easily scanned.
+The data is release under the [CC-BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) license.
+All source files must include a Copyright and License header. 
 
 If you would like to see the detailed LICENSE click [here](LICENSE).
 
-```text
-#
-# Copyright IBM Corp. {Year project was created} - {Current Year}
-# SPDX-License-Identifier: Apache-2.0
-#
-```
 ## Authors
 
-Optionally, you may include a list of authors, though this is redundant with the built-in
-GitHub list of contributors.
 
-- Author: New OpenSource IBMer <new-opensource-ibmer@ibm.com>
+- Author: Matan Orbach <matano@il.ibm.com>
 
 [issues]: https://github.com/IBM/repo-template/issues/new
