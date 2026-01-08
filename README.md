@@ -16,32 +16,18 @@ RAG. Building on these results, further research can explore
 new HPO techniques without incurring the substantial cost
 of running many RAG configuration across datasets.
 
-## Usage
+## Contents
 
-This repository contains some example best practices for open source repositories:
-
-* [LICENSE](LICENSE)
-* [README.md](README.md)
-* [CONTRIBUTING.md](CONTRIBUTING.md)
-* [MAINTAINERS.md](MAINTAINERS.md)
-* [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
-<!-- A Changelog allows you to track major changes and things that happen, https://github.com/github-changelog-generator/github-changelog-generator can help automate the process -->
-* [CHANGELOG.md](CHANGELOG.md)
-
-> These are optional
+- A csv file containing the [per-configuration RAG results][rag_config_results]:
+  - Over 5 datasets
+    - AIArxiv
+    - BioASQ
+    - ClapNQ
+    - MiniWiki
+    - WatsonQA
 
 ## Notes
 
-**NOTE: While this boilerplate project uses the Apache 2.0 license, when
-establishing a new repo using this template, please use the
-license that was approved for your project.**
-
-**NOTE: This repository has been configured with the [DCO bot](https://github.com/probot/dco).
-When you set up a new repository that uses the Apache license, you should
-use the DCO to manage contributions. The DCO bot will help enforce that.
-Please contact one of the IBM GH Org stewards.**
-
-<!-- Questions can be useful but optional, this gives you a place to say, "This is how to contact this project maintainers or create PRs -->
 If you have any questions or issues you can create a new [issue here][issues].
 
 Pull requests are very welcome! Make sure your patches are well tested.
@@ -57,7 +43,6 @@ example:
 ## License
 
 The data is release under the [CC-BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) license.
-All source files must include a Copyright and License header. 
 
 If you would like to see the detailed LICENSE click [here](LICENSE).
 
@@ -66,4 +51,5 @@ If you would like to see the detailed LICENSE click [here](LICENSE).
 
 - Author: Matan Orbach <matano@il.ibm.com>
 
-[issues]: https://github.com/IBM/repo-template/issues/new
+[issues]: https://github.com/IBM/rag-hpo-bench/issues/new
+[rag_config_results]: https://github.com/IBM/rag-hpo-bench/data/rag_configurations_results.csv
