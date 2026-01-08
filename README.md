@@ -52,4 +52,4 @@ If you would like to see the detailed LICENSE click [here](LICENSE).
 - Author: Matan Orbach <matano@il.ibm.com>
 
 [issues]: https://github.com/IBM/rag-hpo-bench/issues/new
-[rag_config_results]: https://github.com/IBM/rag-hpo-bench/data/rag_configurations_results.csv
+[rag_config_results]: https://github.com/IBM/rag-hpo-bench/blob/main/data/rag_configurations_results.csv
