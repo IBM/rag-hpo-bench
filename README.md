@@ -10,7 +10,7 @@
 This project contains code accompanying the paper
 [An Analysis of Hyper-Parameter Optimization Methods for Retrieval Augmented Generation](https://arxiv.org/abs/2505.03452).
 
-The paper release a dataset called [RAG-HPO-bench](https://huggingface.co/datasets/matanor/rag-hpo-bench) which includes RAG results of multiple RAG
+The paper released a dataset called [RAG-HPO-bench](https://huggingface.co/datasets/matanor/rag-hpo-bench) which includes RAG results of multiple RAG
 configurations over a search space of 162 parameter combinations. 
 Building on these results, further research can explore
 new HPO techniques without incurring the substantial cost
@@ -31,6 +31,22 @@ example:
 3. Commit your changes (`git commit -am 'Added some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
 5. Create new Pull Request
+
+## Citation
+
+Please cite the paper if you use the RAG-HPO-bench dataset or code:
+
+```bibtex
+@article{orbach2025raghpo,
+  title={An Analysis of Hyper-Parameter Optimization Methods for Retrieval Augmented Generation},
+  author={Orbach, Matan and Eytan, Ohad and Sznajder, Benjamin and Gera, Ariel and Boni, Odellia and Kantor, Yoav and Bloch, Gal and Levy, Omri and Abraham, Hadas and Barzilay, Nitzan and Shnarch, Eyal and Factor, Michael E. and Ofek-Koifman, Shila and Ta-Shma, Paula and Toledo, Assaf},
+  eprint={2505.03452},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL},
+  year={2025},
+  url={https://arxiv.org/abs/2505.03452},
+}
+```
 
 ## License
 
