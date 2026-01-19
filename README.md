@@ -7,24 +7,16 @@
 <!-- Not always needed, but a scope helps the user understand in a short sentance like below, why this repo exists -->
 
 
-This project contains the grid results of the paper 
+This project contains code accompanying the paper
 [An Analysis of Hyper-Parameter Optimization Methods for Retrieval Augmented Generation](https://arxiv.org/abs/2505.03452).
 
-To our
-knowledge, we are the first to release such a resource for
-RAG. Building on these results, further research can explore
+The paper release a dataset called [RAG-HPO-bench](https://huggingface.co/datasets/matanor/rag-hpo-bench) which includes RAG results of multiple RAG
+configurations over a search space of 162 parameter combinations. 
+Building on these results, further research can explore
 new HPO techniques without incurring the substantial cost
 of running many RAG configuration across datasets.
 
-## Contents
-
-- A csv file containing the [per-configuration RAG results][rag_config_results]:
-  - Over 5 datasets
-    - AIArxiv
-    - BioASQ
-    - ClapNQ
-    - MiniWiki
-    - WatsonQA
+This repository contains code examples with analysis using the RAG-HPO-bench dataset.
 
 ## Notes
 
