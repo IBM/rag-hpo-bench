@@ -1,33 +1,41 @@
 """
 Example script to read RAG configurations summary from Hugging Face dataset
-and print the best configuration for each dataset and split.
+and save the best configuration for each dataset and split to CSV files.
 
 This script demonstrates how to:
-1. Load the rag_configurations_summary.csv from the RAG-HPO-bench dataset
-2. Find the best configuration for each dataset/split combination
-3. Display the results in a readable format
+1. Download only the rag_configurations_summary.csv file from the RAG-HPO-bench dataset
+2. Find the best configuration for each dataset/split combination based on different metrics
+3. Save the results to CSV files with all hyperparameters and metric values
+4. Display summary statistics
 
 Dataset: https://huggingface.co/datasets/ibm-research/rag-hpo-bench
 """
 
 import pandas as pd
-from datasets import load_dataset
+from huggingface_hub import hf_hub_download
 
 
-def load_rag_configurations():
+def load_rag_configurations_summary():
     """
     Load the RAG configurations summary from Hugging Face.
+    Downloads only the rag_configurations_summary.csv file.
     
     Returns:
         pd.DataFrame: DataFrame containing all RAG configurations and their results
     """
-    print("Loading RAG-HPO-bench dataset from Hugging Face...")
+    print("Downloading rag_configurations_summary.csv from Hugging Face...")
     
-    # Load the dataset from Hugging Face
-    dataset = load_dataset("ibm-research/rag-hpo-bench", split="train")
+    # Download only the config summary CSV file from the dataset
+    csv_path = hf_hub_download(
+        repo_id="ibm-research/rag-hpo-bench",
+        filename="rag_configurations_summary.csv",
+        repo_type="dataset"
+    )
     
-    # Convert to pandas DataFrame for easier manipulation
-    df = dataset.to_pandas()
+    print(f"Downloaded to: {csv_path}")
+    
+    # Load the CSV file into a pandas DataFrame
+    df = pd.read_csv(csv_path)
     
     print(f"Loaded {len(df)} RAG configurations")
     print(f"Columns: {list(df.columns)}")
@@ -35,13 +43,15 @@ def load_rag_configurations():
     return df
 
 
-def find_best_configs(df, metric="LLMaaJ-AC"):
+def find_best_configs(df, metric="LLMaaJ-AC", output_csv="best_configs.csv"):
     """
     Find the best configuration for each dataset and split based on a metric.
+    Creates a DataFrame with the best configs and saves it to a CSV file.
     
     Args:
         df: DataFrame with RAG configurations
         metric: Metric to optimize (default: "LLMaaJ-AC")
+        output_csv: Path to save the CSV file (default: "best_configs.csv")
         
     Returns:
         pd.DataFrame: Best configurations for each dataset/split
@@ -51,97 +61,46 @@ def find_best_configs(df, metric="LLMaaJ-AC"):
     # Group by Dataset and Split, then find the row with max metric value
     best_configs = df.loc[df.groupby(['Dataset', 'Split'])[metric].idxmax()]
     
-    return best_configs
+    # Select columns that remain with the same name
+    result_df = best_configs[[
+        'Dataset', 'Split', 'Configuration ID', 'Chunk Size', 'Chunk Overlap',
+        'Embedding Model', 'Top-K', 'Generative Model', 'LLMaaJ-AC',
+        'Lexical-AC', 'Lexical-FF'
+    ]].copy()
+    
+    # Add the objective metric column
+    result_df['Objective Metric'] = metric
+    
+    # Reset index to make it cleaner
+    result_df = result_df.reset_index(drop=True)
+    
+    # Save to CSV
+    result_df.to_csv(output_csv, index=False)
+    print(f"Best configurations saved to: {output_csv}")
+    print(f"Total best configurations: {len(result_df)}")
+    
+    return result_df
 
 
-def print_best_configs(best_configs, metric="LLMaaJ-AC"):
-    """
-    Print the best configurations in a readable format.
-    
-    Args:
-        best_configs: DataFrame with best configurations
-        metric: Metric that was optimized
-    """
-    print(f"\n{'='*80}")
-    print(f"BEST RAG CONFIGURATIONS (optimized for {metric})")
-    print(f"{'='*80}\n")
-    
-    for _, row in best_configs.iterrows():
-        print(f"Dataset: {row['Dataset']}")
-        print(f"Split: {row['Split']}")
-        print(f"Configuration ID: {row['Configuration ID']}")
-        print(f"\nHyperparameters:")
-        print(f"  - Chunk Size: {row['Chunk Size']}")
-        print(f"  - Chunk Overlap: {row['Chunk Overlap']:.2f}")
-        print(f"  - Embedding Model: {row['Embedding Model']}")
-        print(f"  - Top-K: {row['Top-K']}")
-        print(f"  - Generative Model: {row['Generative Model']}")
-        print(f"\nMetrics:")
-        print(f"  - {metric}: {row[metric]:.4f}")
-        print(f"  - Lexical-AC: {row['Lexical-AC']:.4f}")
-        print(f"  - Lexical-FF: {row['Lexical-FF']:.4f}")
-        print(f"  - Context Correctness: {row['Context Correctness']:.4f}")
-        print(f"\n{'-'*80}\n")
-
-
-def compare_metrics(df):
-    """
-    Compare best configurations across different metrics.
-    
-    Args:
-        df: DataFrame with RAG configurations
-    """
-    metrics = ["LLMaaJ-AC", "Lexical-AC", "Lexical-FF"]
-    
-    print(f"\n{'='*80}")
-    print("COMPARISON: Best Configs Across Different Metrics")
-    print(f"{'='*80}\n")
-    
-    for dataset_split in df.groupby(['Dataset', 'Split']).groups.keys():
-        dataset, split = dataset_split
-        subset = df[(df['Dataset'] == dataset) & (df['Split'] == split)]
-        
-        print(f"Dataset: {dataset}, Split: {split}")
-        print(f"{'Metric':<20} {'Config ID':<12} {'Score':<10} {'Chunk Size':<12} {'Top-K':<8}")
-        print("-" * 70)
-        
-        for metric in metrics:
-            best_idx = subset[metric].idxmax()
-            best_row = subset.loc[best_idx]
-            print(f"{metric:<20} {best_row['Configuration ID']:<12} "
-                  f"{best_row[metric]:<10.4f} {best_row['Chunk Size']:<12} "
-                  f"{best_row['Top-K']:<8}")
-        
-        print()
-
-
-def main():
-    """Main function to demonstrate usage."""
-    
+def main():    
     # Load the dataset
-    df = load_rag_configurations()
+    df = load_rag_configurations_summary()
     
-    # Find and print best configurations for LLMaaJ-AC metric
-    best_configs_llmaaj = find_best_configs(df, metric="LLMaaJ-AC")
-    print_best_configs(best_configs_llmaaj, metric="LLMaaJ-AC")
+    # Find and save best configurations for LLMaaJ-AC metric
+    best_configs_llmaaj = find_best_configs(df, metric="LLMaaJ-AC", output_csv="best_configs_llmaaj_ac.csv")
+    print(f"\nPreview of best configurations (LLMaaJ-AC):")
+    print(best_configs_llmaaj.to_string())
     
-    # Find and print best configurations for Lexical-AC metric
-    best_configs_lexical = find_best_configs(df, metric="Lexical-AC")
-    print_best_configs(best_configs_lexical, metric="Lexical-AC")
+    # Find and save best configurations for Lexical-AC metric
+    best_configs_lexical = find_best_configs(df, metric="Lexical-AC", output_csv="best_configs_lexical_ac.csv")
+    print(f"\nPreview of best configurations (Lexical-AC):")
+    print(best_configs_lexical.to_string())
     
-    # Compare metrics
-    compare_metrics(df)
+    # Find and save best configurations for Lexical-FF metric
+    best_configs_ff = find_best_configs(df, metric="Lexical-FF", output_csv="best_configs_lexical_ff.csv")
+    print(f"\nPreview of best configurations (Lexical-FF):")
+    print(best_configs_ff.to_string())
     
-    # Summary statistics
-    print(f"\n{'='*80}")
-    print("SUMMARY STATISTICS")
-    print(f"{'='*80}\n")
-    
-    print(f"Total configurations: {len(df)}")
-    print(f"Unique datasets: {df['Dataset'].nunique()}")
-    print(f"Datasets: {sorted(df['Dataset'].unique())}")
-    print(f"\nConfigurations per dataset/split:")
-    print(df.groupby(['Dataset', 'Split']).size())
 
 
 if __name__ == "__main__":
