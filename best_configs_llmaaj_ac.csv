@@ -1,0 +1,13 @@
+Dataset,Split,Configuration ID,Chunk Size,Chunk Overlap,Embedding Model,Top-K,Generative Model,LLMaaJ-AC,Lexical-AC,Lexical-FF,Objective Metric
+AIArxiv,Dev,61,384,0.0,BAAI/bge-large-en-v1.5,10,meta-llama/llama-3-1-8b-instruct,0.6239288732053017,0.5374,0.5491,LLMaaJ-AC
+AIArxiv,Test,49,256,0.25,intfloat/multilingual-e5-large,5,meta-llama/llama-3-1-8b-instruct,0.6679071616437973,0.5146,0.5251,LLMaaJ-AC
+BioASQ,Dev,142,512,0.25,BAAI/bge-large-en-v1.5,10,meta-llama/llama-3-1-8b-instruct,0.5611291250626844,0.5352,0.5548,LLMaaJ-AC
+BioASQ,Dev-Sampled,34,256,0.25,BAAI/bge-large-en-v1.5,10,meta-llama/llama-3-1-8b-instruct,0.5965493448224456,0.5781,0.5221,LLMaaJ-AC
+BioASQ,Test,124,512,0.0,ibm/slate-125m-english-rtrvr,10,meta-llama/llama-3-1-8b-instruct,0.5807520187698334,0.5778,0.5605,LLMaaJ-AC
+ClapNQ,Dev,70,384,0.0,ibm/slate-125m-english-rtrvr,10,meta-llama/llama-3-1-8b-instruct,0.5732658846771969,0.4624,0.5541,LLMaaJ-AC
+ClapNQ,Dev-Sampled,70,384,0.0,ibm/slate-125m-english-rtrvr,10,meta-llama/llama-3-1-8b-instruct,0.6601581549435072,0.5327,0.6261,LLMaaJ-AC
+ClapNQ,Test,70,384,0.0,ibm/slate-125m-english-rtrvr,10,meta-llama/llama-3-1-8b-instruct,0.5986970923682076,0.4459,0.5482,LLMaaJ-AC
+MiniWiki,Dev,127,512,0.0,intfloat/multilingual-e5-large,3,meta-llama/llama-3-1-8b-instruct,0.5060234430460698,0.6194,0.538,LLMaaJ-AC
+MiniWiki,Test,112,512,0.0,BAAI/bge-large-en-v1.5,5,meta-llama/llama-3-1-8b-instruct,0.5558002217350337,0.6416,0.5699,LLMaaJ-AC
+WatsonxQA,Dev,154,512,0.25,intfloat/multilingual-e5-large,3,meta-llama/llama-3-1-8b-instruct,0.7614509931131398,0.8228,0.6368,LLMaaJ-AC
+WatsonxQA,Test,142,512,0.25,BAAI/bge-large-en-v1.5,10,meta-llama/llama-3-1-8b-instruct,0.7476382544090886,0.8019,0.6044,LLMaaJ-AC
