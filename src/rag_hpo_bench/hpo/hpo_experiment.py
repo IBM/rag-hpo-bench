@@ -5,7 +5,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 
-from rageval.flows.dataset_id import DatasetID
+from rag_hpo_bench.data_models import DatasetID
 from rag_hpo_bench.hpo.hpo_algorithm import HpoAlgorithmType
 from rag_hpo_bench.hpo.multiple_seeds_runner import MultipleSeedsRunner
 from rag_hpo_bench.hpo.rag_runner import RagRunner

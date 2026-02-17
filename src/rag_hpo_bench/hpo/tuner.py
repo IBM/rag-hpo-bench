@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from rageval.flows.dataset_id import DatasetID
+from rag_hpo_bench.data_models import DatasetID
 from rag_hpo_bench.hpo.hpo_algorithm import GreedyMHPO, GridHPO, HpoAlgorithmType, RandomHPO
 from rag_hpo_bench.hpo.hpo_results import HpoResults
 from rag_hpo_bench.hpo.rag_runner import RagRunner

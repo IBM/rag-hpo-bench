@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 
-from rageval.flows.dataset_id import DatasetID
+from rag_hpo_bench.data_models import DatasetID
 from rag_hpo_bench.hpo.hpo_algorithm import HpoAlgorithmType
 from rag_hpo_bench.hpo.hpo_results import HpoResults
 from rag_hpo_bench.hpo.search_space import PatternParameters
