@@ -78,17 +78,20 @@ class RagRunner:
         matched_rows = df[mask]
         
         if len(matched_rows) == 0:
-            logger.warning(
-                f"No matching configuration found in summary file for filters: {filters}"
+            raise ValueError(
+                f"No matching configuration found in summary file for filters: {filters}. "
+                f"Please verify that the pattern parameters match an existing configuration in the dataset."
             )
-            return None
         
         if len(matched_rows) > 1:
-            logger.warning(
-                f"Multiple matching configurations found ({len(matched_rows)}). Using the first one."
+            raise ValueError(
+                f"Multiple matching configurations found ({len(matched_rows)}). "
+                f"This indicates missing parameters in the pattern_parameters. "
+                f"Please provide more specific parameters to uniquely identify a configuration. "
+                f"Filters used: {filters}"
             )
         
-        # Get the first matching row
+        # Get the single matching row
         row = matched_rows.iloc[0]
         
         # Extract metric results
