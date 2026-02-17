@@ -10,9 +10,6 @@ from typing import Any, Mapping
 
 from pydantic import BaseModel, ConfigDict
 
-from rageval.experiment_setup import ExperimentSetup
-from rageval.utils.hash_utils import get_hash_dict
-
 logger = logging.getLogger(__name__)
 
 
@@ -172,9 +169,6 @@ class PatternParameters:
                         f"destination: {destination[k]}\nsource: {v}"
                     )
 
-    def to_hash(self) -> str:
-        return get_hash_dict({"_".join(p.path): p.value for p in self.pattern_params})
-
     @staticmethod
     def from_dict(pattern_parameters_dict: dict):
         rag_parameters = PatternParameters._from_dict(pattern_parameters_dict)
@@ -217,17 +211,6 @@ class SearchSpace(BaseModel):
             else:
                 items.append(SearchSpaceParameter(path=current_path, values=v))
         return items
-
-    @staticmethod
-    def from_experiment_setup(experiment_setup: ExperimentSetup):
-        search_space_dict = experiment_setup.get_search_space_dict()
-        search_space_parameters = SearchSpace.create_search_space_params(
-            search_space_dict
-        )
-        logger.info(
-            f"Creating a search space from {len(search_space_parameters)} rag parameters."
-        )
-        return SearchSpace(parameters=search_space_parameters)
 
     def serialize(self, output_dir: Path):
         output_dir.mkdir(parents=True, exist_ok=True)
