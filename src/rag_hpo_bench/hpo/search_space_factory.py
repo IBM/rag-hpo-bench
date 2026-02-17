@@ -3,9 +3,14 @@ from rag_hpo_bench.hpo.search_space import (
     SearchSpace,
     SearchSpaceParameter,
 )
-from rageval.performance.pipelines import Pipelines
-from rageval.performance.stage import Stage
 from rageval.pipeline.api.data_model import ModelProvider
+
+_DATA_PIPELINE = "data_pipeline"
+_INFERENCE_PIPELINE = "inference_pipeline"
+
+_INDEXING = "indexing"
+_RETRIEVAL = "retrieval"
+_GENERATION = "generation"
 
 
 def new_search_space(
@@ -21,90 +26,90 @@ def new_search_space(
 
     parameters = [
         SearchSpaceParameter(
-            path=[Pipelines.DATA.value, "type"],
+            path=[_DATA_PIPELINE, "type"],
             values="BasicDataPipeline",
         ),
         SearchSpaceParameter(
             path=[
-                Pipelines.DATA.value,
+                _DATA_PIPELINE,
                 "params",
-                Stage.INDEXING,
+                _INDEXING,
                 RagParameterName.VECTOR_SPACE,
             ],
             values=vector_space_configs,
         ),
         SearchSpaceParameter(
             path=[
-                Pipelines.DATA.value,
+                _DATA_PIPELINE,
                 "params",
-                Stage.INDEXING,
+                _INDEXING,
                 RagParameterName.CHUNK_SIZE,
             ],
             values=chunk_sizes,
         ),
         SearchSpaceParameter(
             path=[
-                Pipelines.DATA.value,
+                _DATA_PIPELINE,
                 "params",
-                Stage.INDEXING,
+                _INDEXING,
                 RagParameterName.CHUNK_OVERLAP,
             ],
             values=chunk_overlaps,
         ),
         SearchSpaceParameter(
             path=[
-                Pipelines.DATA.value,
+                _DATA_PIPELINE,
                 "params",
-                Stage.INDEXING,
+                _INDEXING,
                 RagParameterName.CHUNK_UNIT,
             ],
             values="character",
         ),
         SearchSpaceParameter(
-            path=[Pipelines.INFERENCE.value, "type"],
+            path=[_INFERENCE_PIPELINE, "type"],
             values="BasicInferencePipeline",
         ),
         SearchSpaceParameter(
             path=[
-                Pipelines.INFERENCE.value,
+                _INFERENCE_PIPELINE,
                 "params",
-                Stage.RETRIEVAL,
+                _RETRIEVAL,
                 RagParameterName.TOP_K,
             ],
             values=10,
         ),
         SearchSpaceParameter(
             path=[
-                Pipelines.INFERENCE.value,
+                _INFERENCE_PIPELINE,
                 "params",
-                Stage.GENERATION,
+                _GENERATION,
                 RagParameterName.TEMPERATURE,
             ],
             values=0,
         ),
         SearchSpaceParameter(
             path=[
-                Pipelines.INFERENCE.value,
+                _INFERENCE_PIPELINE,
                 "params",
-                Stage.GENERATION,
+                _GENERATION,
                 RagParameterName.MIN_NEW_TOKENS,
             ],
             values=1,
         ),
         SearchSpaceParameter(
             path=[
-                Pipelines.INFERENCE.value,
+                _INFERENCE_PIPELINE,
                 "params",
-                Stage.GENERATION,
+                _GENERATION,
                 RagParameterName.MAX_NEW_TOKENS,
             ],
             values=500,
         ),
         SearchSpaceParameter(
             path=[
-                Pipelines.INFERENCE.value,
+                _INFERENCE_PIPELINE,
                 "params",
-                Stage.GENERATION,
+                _GENERATION,
                 RagParameterName.GENERATIVE_MODEL,
             ],
             values=generative_models,
