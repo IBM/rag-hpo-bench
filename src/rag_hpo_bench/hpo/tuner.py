@@ -1,8 +1,8 @@
 import logging
-from abc import ABC, abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from rageval.flows.dataset_id import DatasetID
 from rag_hpo_bench.hpo.hpo_algorithm import GreedyMHPO, GridHPO, HpoAlgorithmType, RandomHPO
@@ -11,32 +11,6 @@ from rag_hpo_bench.hpo.rag_runner import RagRunner
 from rag_hpo_bench.hpo.search_space import PatternParameters, SearchSpace
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(kw_only=True)
-class Tuner(ABC):
-
-    output_path: str | Path
-    skip_existing_tunes: bool = False
-    rag_runner: RagRunner
-    algorithm_params: dict[str, any]
-    metric_defs: dict[str, any]
-
-    def __post_init__(self):
-        # Initialize the optimization_metric_id which is what is used by an HPO algorithm
-        self.algorithm_params = deepcopy(self.algorithm_params)
-        optimization_metric_name = self.algorithm_params.get("optimization_metric_name")
-        if not optimization_metric_name:
-            raise ValueError(
-                f"Missing key 'optimization_metric_name' from algorithm params '{self.algorithm_params}'."
-            )
-        self.algorithm_params["optimization_metric_id"] = self.metric_defs[
-            optimization_metric_name
-        ]["metric_id"]
-
-    @abstractmethod
-    def run(self, tuner_params: [str, any] = None) -> HpoResults:
-        pass
 
 
 def new_hpo_algorithm(
@@ -69,20 +43,36 @@ def new_hpo_algorithm(
 
 
 @dataclass(kw_only=True)
-class SingleStageTuner(Tuner):
+class Tuner:
     """
     An object for running a single tune, using a single set of parameters.
     """
 
+    output_path: str | Path
+    skip_existing_tunes: bool = False
+    rag_runner: RagRunner
+    algorithm_params: dict[str, any]
+    metric_defs: dict[str, any]
     search_space: SearchSpace
     tune_dataset: DatasetID
 
     def __post_init__(self):
-        super().__post_init__()  # Must call manually otherwise the base class __post_init__ is not called.
-        self.output_path = Path(self.output_path)  # We ensure it is a Path
+        # Initialize the optimization_metric_id which is what is used by an HPO algorithm
+        self.algorithm_params = deepcopy(self.algorithm_params)
+        optimization_metric_name = self.algorithm_params.get("optimization_metric_name")
+        if not optimization_metric_name:
+            raise ValueError(
+                f"Missing key 'optimization_metric_name' from algorithm params '{self.algorithm_params}'."
+            )
+        self.algorithm_params["optimization_metric_id"] = self.metric_defs[
+            optimization_metric_name
+        ]["metric_id"]
+        
+        # Ensure output_path is a Path and create directory
+        self.output_path = Path(self.output_path)
         self.output_path.mkdir(parents=True, exist_ok=True)
 
-    def run(self, tuner_params: [str, any] = None) -> HpoResults:
+    def run(self, tuner_params: dict[str, Any] | None = None) -> HpoResults:
         self.search_space.serialize(output_dir=self.output_path)
         tune_results_path = HpoResults.file_name(path=self.output_path)
         if tune_results_path.exists() and self.skip_existing_tunes:

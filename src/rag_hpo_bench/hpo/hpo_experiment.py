@@ -10,7 +10,7 @@ from rag_hpo_bench.hpo.hpo_algorithm import HpoAlgorithmType
 from rag_hpo_bench.hpo.multiple_seeds_runner import MultipleSeedsRunner
 from rag_hpo_bench.hpo.rag_runner import RagRunner
 from rag_hpo_bench.hpo.search_space import SearchSpace
-from rag_hpo_bench.hpo.single_stage_tuner import SingleStageTuner
+from rag_hpo_bench.hpo.tuner import Tuner
 from rag_hpo_bench.hpo.tune_and_test_runner import TuneAndTestRunner
 from rageval.pipeline.api.data_model import EvaluationParams
 
@@ -61,7 +61,7 @@ class HpoExperiment:
             algorithm_type == HpoAlgorithmType.GRID and num_seeds is not None
         ), f"Can not set HPO Algorithm to be {algorithm_type.value} and num_seeds is not None (num_seeds = {num_seeds})."
 
-        tuner = SingleStageTuner(
+        tuner = Tuner(
             search_space=self.search_space,
             rag_runner=RagRunner(),
             algorithm_params=algorithm_params,

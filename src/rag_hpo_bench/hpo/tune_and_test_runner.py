@@ -5,7 +5,7 @@ from rageval.flows.dataset_id import DatasetID
 from rag_hpo_bench.hpo.hpo_algorithm import HpoAlgorithmType
 from rag_hpo_bench.hpo.hpo_results import HpoResults
 from rag_hpo_bench.hpo.search_space import PatternParameters
-from rag_hpo_bench.hpo.single_stage_tuner import Tuner
+from rag_hpo_bench.hpo.tuner import Tuner
 from rag_hpo_bench.hpo.test_results import TestResults
 
 logger = logging.getLogger(__name__)
