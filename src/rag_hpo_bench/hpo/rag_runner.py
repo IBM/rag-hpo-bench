@@ -5,8 +5,8 @@ import logging
 from typing import Any
 
 import pandas as pd
-from rageval.flows.dataset_id import DatasetID
 
+from rag_hpo_bench.data_models.dataset_id import DatasetID
 from rag_hpo_bench.hpo.pattern_results import PatternResults
 from rag_hpo_bench.hpo.search_space import PatternParameters
 from rag_hpo_bench.utils.dataset_loader import load_rag_configurations_summary
