@@ -13,7 +13,7 @@ from rag_hpo_bench.hpo.search_space import PatternParameters, SearchSpace
 logger = logging.getLogger(__name__)
 
 
-def new_hpo_algorithm(
+def _new_hpo_algorithm(
     search_space: SearchSpace, objective_function, algorithm_params: dict[str, any]
 ):
     algorithm_type = HpoAlgorithmType(algorithm_params["algorithm_type"])
@@ -89,7 +89,7 @@ class Tuner:
         del algorithm_params[
             "optimization_metric_name"
         ]  # Not needed for hpo algorithm initialization
-        hpo_algorithm = new_hpo_algorithm(
+        hpo_algorithm = _new_hpo_algorithm(
             self.search_space, objective_function, algorithm_params
         )
         hpo_results = hpo_algorithm.search()
