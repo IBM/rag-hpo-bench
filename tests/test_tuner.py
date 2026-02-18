@@ -67,26 +67,10 @@ def sample_search_space():
 
 
 @pytest.fixture
-def sample_metric_defs():
-    """Create sample metric definitions."""
-    return {
-        "answer_correctness": {
-            "metric_id": "answer_correctness",
-            "display_name": "Answer Correctness",
-        },
-        "faithfulness": {
-            "metric_id": "faithfulness",
-            "display_name": "Faithfulness",
-        },
-    }
-
-
-@pytest.fixture
 def sample_algorithm_params():
     """Create sample algorithm parameters for grid search."""
     return {
         "algorithm_type": "grid",
-        "optimization_metric_name": "answer_correctness",
     }
 
 
@@ -107,7 +91,6 @@ class TestTunerRun:
         tmp_path,
         sample_hf_dataframe,
         sample_search_space,
-        sample_metric_defs,
         sample_algorithm_params,
         sample_dataset_id,
     ):
@@ -124,7 +107,7 @@ class TestTunerRun:
             skip_existing_tunes=False,
             rag_runner=rag_runner,
             algorithm_params=sample_algorithm_params,
-            metric_defs=sample_metric_defs,
+            optimization_metric_id="answer_correctness",
             search_space=sample_search_space,
             tune_dataset=sample_dataset_id,
         )
@@ -163,9 +146,9 @@ class TestTunerRun:
         assert set(df["indexing.chunking.overlap"].unique()) == {50, 100}
         assert set(df["inference.retrieval.top-k"].unique()) == {5, 10}
         
-        # Verify algorithm params were added to summary
-        assert "optimization_metric_name" in df.columns
-        assert all(df["optimization_metric_name"] == "answer_correctness")
+        # Verify optimization_metric_id was added to algorithm params
+        assert "optimization_metric_id" in df.columns
+        assert all(df["optimization_metric_id"] == "answer_correctness")
         
         # Verify pattern results files were created
         for i in range(8):
@@ -190,32 +173,39 @@ class TestTunerRun:
         assert best_params["indexing.chunking.size"] == 1024
         assert best_params["inference.retrieval.top-k"] == 10
 
-    def test_run_missing_optimization_metric_raises_error(
+    def test_run_with_optimization_metric_id(
         self,
         tmp_path,
+        sample_hf_dataframe,
         sample_search_space,
-        sample_metric_defs,
+        sample_algorithm_params,
         sample_dataset_id,
     ):
-        """Test that missing optimization_metric_name raises ValueError."""
+        """Test that optimization_metric_id is properly used."""
         output_path = tmp_path / "tuner_output"
         rag_runner = RagRunner()
         
-        # Algorithm params without optimization_metric_name
-        invalid_algorithm_params = {
-            "algorithm_type": "grid",
-        }
+        # Create tuner with optimization_metric_id
+        tuner = Tuner(
+            output_path=output_path,
+            skip_existing_tunes=False,
+            rag_runner=rag_runner,
+            algorithm_params=sample_algorithm_params,
+            optimization_metric_id="faithfulness",
+            search_space=sample_search_space,
+            tune_dataset=sample_dataset_id,
+        )
         
-        # Should raise ValueError during initialization
-        with pytest.raises(ValueError) as exc_info:
-            Tuner(
-                output_path=output_path,
-                skip_existing_tunes=False,
-                rag_runner=rag_runner,
-                algorithm_params=invalid_algorithm_params,
-                metric_defs=sample_metric_defs,
-                search_space=sample_search_space,
-                tune_dataset=sample_dataset_id,
-            )
+        # Mock the HuggingFace dataset loading
+        with patch(
+            "rag_hpo_bench.hpo.rag_runner.load_rag_configurations_summary",
+            return_value=sample_hf_dataframe
+        ):
+            result = tuner.run()
         
-        assert "optimization_metric_name" in str(exc_info.value)
+        # Verify optimization_metric_id is in algorithm_params
+        assert tuner.algorithm_params["optimization_metric_id"] == "faithfulness"
+        
+        # Verify results were generated
+        assert result is not None
+        assert isinstance(result, HpoResults)

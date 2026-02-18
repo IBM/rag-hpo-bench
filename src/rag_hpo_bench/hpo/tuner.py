@@ -52,21 +52,14 @@ class Tuner:
     skip_existing_tunes: bool = False
     rag_runner: RagRunner
     algorithm_params: dict[str, any]
-    metric_defs: dict[str, any]
+    optimization_metric_id: str
     search_space: SearchSpace
     tune_dataset: DatasetID
 
     def __post_init__(self):
-        # Initialize the optimization_metric_id which is what is used by an HPO algorithm
+        # Add optimization_metric_id to algorithm_params for HPO algorithm
         self.algorithm_params = deepcopy(self.algorithm_params)
-        optimization_metric_name = self.algorithm_params.get("optimization_metric_name")
-        if not optimization_metric_name:
-            raise ValueError(
-                f"Missing key 'optimization_metric_name' from algorithm params '{self.algorithm_params}'."
-            )
-        self.algorithm_params["optimization_metric_id"] = self.metric_defs[
-            optimization_metric_name
-        ]["metric_id"]
+        self.algorithm_params["optimization_metric_id"] = self.optimization_metric_id
         
         # Ensure output_path is a Path and create directory
         self.output_path = Path(self.output_path)
@@ -86,9 +79,6 @@ class Tuner:
             return self.rag_runner.run(self.tune_dataset, pattern_parameters)
 
         algorithm_params = deepcopy(self.algorithm_params)
-        del algorithm_params[
-            "optimization_metric_name"
-        ]  # Not needed for hpo algorithm initialization
         hpo_algorithm = _new_hpo_algorithm(
             self.search_space, objective_function, algorithm_params
         )

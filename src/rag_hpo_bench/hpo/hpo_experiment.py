@@ -21,8 +21,7 @@ class HpoExperiment:
     tune_dataset: DatasetID
     test_dataset: DatasetID | None
     algorithm_params: dict
-    model_defs: dict
-    metric_defs: dict
+    optimization_metric_id: str
     output_path: Path
     skip_existing_tunes: bool = False
     skip_existing_test_results: bool = False
@@ -63,7 +62,7 @@ class HpoExperiment:
             tune_dataset=self.tune_dataset,
             output_path=self.output_path,
             skip_existing_tunes=self.skip_existing_tunes,
-            metric_defs=self.metric_defs,
+            optimization_metric_id=self.optimization_metric_id,
         )
 
         tune_and_test_runner = TuneAndTestRunner(
