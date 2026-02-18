@@ -1,9 +1,12 @@
 import logging
+import random
 from dataclasses import dataclass
+from pathlib import Path
 
 from rag_hpo_bench.data_models import DatasetID
 from rag_hpo_bench.hpo.hpo_algorithm import HpoAlgorithmType
 from rag_hpo_bench.hpo.hpo_results import HpoResults
+from rag_hpo_bench.hpo.pattern_results import MultiplePatternResults
 from rag_hpo_bench.hpo.search_space import PatternParameters
 from rag_hpo_bench.hpo.tuner import Tuner
 from rag_hpo_bench.hpo.test_results import TestResults
@@ -18,12 +21,32 @@ class TuneAndTestRunner:
     test_dataset: DatasetID | None
     skip_existing_test_results: bool = False
 
+    """
+    The seed used for initializing the random generator that creates the seeds used
+    per each run of the tuning algorithms.
+    """
+    seed_of_seeds: int = 17
+
+    """
+    The number of seeds used by the tuning algorithms. Each algorithm runs this number of
+    times, each with a different seed.
+    None: disables seed-based running. In this case the tuning algorithm runs once without receiving a seed.
+    """
+    num_seeds: int | None = None
+
+    def __post_init__(self):
+        if self.num_seeds:
+            random.seed(self.seed_of_seeds)
+            self.seeds = [random.randint(1, 10000) for _ in range(self.num_seeds)]
+        else:
+            self.seeds = []
+
     @property
-    def output_path(self) -> str:
+    def output_path(self) -> Path:
         return self.tuner.output_path
 
     @output_path.setter
-    def output_path(self, value: str):
+    def output_path(self, value: Path):
         if not value:
             raise ValueError("output_path cannot be empty")
         self.tuner.output_path = value
@@ -43,8 +66,11 @@ class TuneAndTestRunner:
             )
         return best_configs[0]
 
-    def run(self, tuner_params: dict[str, any] = None) -> HpoResults | TestResults:
-        output_path = self.tuner.output_path
+    def _run_single_seed(
+        self, tuner_params: dict[str, any] | None = None
+    ) -> HpoResults | TestResults:
+        """Run tune and test for a single seed."""
+        output_path = Path(self.tuner.output_path)
         self.tuner.output_path = output_path / "tuning"
 
         test_output_path = output_path / "test"
@@ -94,8 +120,9 @@ class TuneAndTestRunner:
             best_config_result = test_runner.run(
                 self.test_dataset, pattern_parameters=best_config
             )
-            best_config_result.name = f"best_till_iteration_{max_iteration}"
-            best_configs_results.append(best_config_result)
+            if best_config_result:
+                best_config_result.name = f"best_till_iteration_{max_iteration}"
+                best_configs_results.append(best_config_result)
 
         test_results = TestResults.create(best_configs_results)
         if tuner_params:
@@ -104,3 +131,46 @@ class TuneAndTestRunner:
         test_results.to_csv(directory=test_output_path, file_name="test_results.csv")
         logger.info(f"Test results written to '{test_output_path}'.")
         return test_results
+
+    def run(
+        self, tuner_params: dict[str, any] | None = None
+    ) -> HpoResults | TestResults | MultiplePatternResults:
+        """
+        Run tune and test, optionally with multiple seeds.
+        
+        If num_seeds is set, runs the experiment multiple times with different seeds
+        and returns MultiplePatternResults. Otherwise, runs once and returns
+        HpoResults or TestResults.
+        """
+        if not self.num_seeds:
+            # Single run without seeds
+            return self._run_single_seed(tuner_params)
+
+        # Multi-seed run
+        all_seeds_results_list = []
+        num_runs = len(self.seeds)
+        base_output_path = Path(self.tuner.output_path)
+        logger.info(
+            f"Running multi-seed experiment with {num_runs} runs, seeds: '{self.seeds}'."
+        )
+        
+        for seed_i in range(num_runs):
+            seed = self.seeds[seed_i]
+            self.tuner.output_path = base_output_path / f"seed_{seed}"
+            logger.info(
+                f"Running tune and test {seed_i+1} out of {len(self.seeds)} "
+                f"(with seed '{seed}')"
+            )
+            tuner_params_with_seed = dict(tuner_params) if tuner_params else dict()
+            tuner_params_with_seed["seed"] = seed
+            single_seed_result = self._run_single_seed(tuner_params_with_seed)
+            all_seeds_results_list.append(single_seed_result)
+
+        all_seeds_results = MultiplePatternResults.concat(all_seeds_results_list)
+        all_seeds_results.to_csv(
+            directory=base_output_path,
+            file_name="test_multi_seed_results.csv",
+            with_predictions=False,
+        )
+        logger.info(f"All seeds results written to '{base_output_path}'.")
+        return all_seeds_results

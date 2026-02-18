@@ -7,12 +7,10 @@ from pathlib import Path
 
 from rag_hpo_bench.data_models import DatasetID
 from rag_hpo_bench.hpo.hpo_algorithm import HpoAlgorithmType
-from rag_hpo_bench.hpo.multiple_seeds_runner import MultipleSeedsRunner
 from rag_hpo_bench.hpo.rag_runner import RagRunner
 from rag_hpo_bench.hpo.search_space import SearchSpace
 from rag_hpo_bench.hpo.tuner import Tuner
 from rag_hpo_bench.hpo.tune_and_test_runner import TuneAndTestRunner
-from rageval.pipeline.api.data_model import EvaluationParams
 
 logger = logging.getLogger(__name__)
 
@@ -22,13 +20,10 @@ class HpoExperiment:
     search_space: SearchSpace
     tune_dataset: DatasetID
     test_dataset: DatasetID | None
-    evaluation_params: EvaluationParams
     algorithm_params: dict
     model_defs: dict
     metric_defs: dict
     output_path: Path
-    cache_path: Path
-    drop_index: bool = False
     skip_existing_tunes: bool = False
     skip_existing_test_results: bool = False
     clean_output_dir: bool = False
@@ -71,15 +66,13 @@ class HpoExperiment:
             metric_defs=self.metric_defs,
         )
 
-        multiple_seeds_runner = MultipleSeedsRunner(
-            tune_and_test_runner=TuneAndTestRunner(
-                tuner=tuner,
-                test_dataset=self.test_dataset,
-                skip_existing_test_results=self.skip_existing_test_results,
-            ),
+        tune_and_test_runner = TuneAndTestRunner(
+            tuner=tuner,
+            test_dataset=self.test_dataset,
+            skip_existing_test_results=self.skip_existing_test_results,
             num_seeds=int(num_seeds) if num_seeds else None,
         )
 
-        all_seeds_results = multiple_seeds_runner.run()
+        all_seeds_results = tune_and_test_runner.run()
         logger.info(f"Experiment output written to '{self.output_path}'.")
         return all_seeds_results

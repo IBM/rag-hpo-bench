@@ -48,7 +48,7 @@ class Tuner:
     An object for running a single tune, using a single set of parameters.
     """
 
-    output_path: str | Path
+    output_path: Path
     skip_existing_tunes: bool = False
     rag_runner: RagRunner
     algorithm_params: dict[str, any]
