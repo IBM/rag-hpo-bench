@@ -47,13 +47,13 @@ class RagRunner:
         params_dict = pattern_parameters.get_path_to_values_dict()
         
         # Map parameter paths to column names in the summary file
-        # Based on analyze_configs_distribution.py structure
+        # Column names in HuggingFace dataset use title case with spaces
         param_mapping = {
-            "indexing.chunking.size": "chunking_size",
-            "indexing.chunking.overlap": "chunking_overlap",
-            "indexing.embedding.model": "embedding_model",
-            "inference.retrieval.top-k": "top-k",
-            "inference.generation.model": "generator",
+            "indexing.chunking.size": "Chunk Size",
+            "indexing.chunking.overlap": "Chunk Overlap",
+            "indexing.embedding.model": "Embedding Model",
+            "inference.retrieval.top-k": "Top-K",
+            "inference.generation.model": "Generative Model",
         }
         
         # Build filter conditions
@@ -62,17 +62,34 @@ class RagRunner:
             if param_path in params_dict:
                 filters[col_name] = params_dict[param_path]
         
-        # Add dataset_id filter
+        # Add dataset_id filter - need to split into Dataset and Split columns
         dataset_id_str = dataset_id.as_string() if hasattr(dataset_id, 'as_string') else str(dataset_id)
-        filters["dataset_id"] = dataset_id_str
+        # Parse dataset_id format: "name-<dataset>_split-<split>"
+        if "_split-" in dataset_id_str:
+            parts = dataset_id_str.split("_split-")
+            dataset_name = parts[0].replace("name-", "")
+            split_name = parts[1]
+            filters["Dataset"] = dataset_name
+            filters["Split"] = split_name
+        else:
+            logger.warning(f"Unexpected dataset_id format: {dataset_id_str}. Expected format: 'name-<dataset>_split-<split>'")
+            filters["Dataset"] = dataset_id_str
         
         # Filter the dataframe
         logger.info(f"Filtering with: {filters}")
+        
+        # Check for missing columns first and raise exception if any are missing
+        missing_columns = [col_name for col_name in filters.keys() if col_name not in df.columns]
+        if missing_columns:
+            raise ValueError(
+                f"Missing columns in summary file: {missing_columns}. "
+                f"Available columns: {df.columns.tolist()}. "
+                f"This indicates a mismatch between the filter parameters and the dataset schema."
+            )
+        
+        # Apply filters
         mask = pd.Series([True] * len(df))
         for col_name, value in filters.items():
-            if col_name not in df.columns:
-                logger.warning(f"Column '{col_name}' not found in summary file. Available columns: {df.columns.tolist()}")
-                continue
             mask &= df[col_name] == value
         
         matched_rows = df[mask]
@@ -85,7 +102,7 @@ class RagRunner:
         
         if len(matched_rows) > 1:
             raise ValueError(
-                f"Multiple matching configurations found ({len(matched_rows)}). "
+                f"Multiple matching configurations found (num matches: {len(matched_rows)}). "
                 f"This indicates missing parameters in the pattern_parameters. "
                 f"Please provide more specific parameters to uniquely identify a configuration. "
                 f"Filters used: {filters}"
