@@ -5,12 +5,15 @@ This script runs multiple HPO experiments with different combinations of
 datasets, algorithms, and optimization metrics.
 """
 
+import argparse
 import logging
 from pathlib import Path
+from typing import Any
 
 from rag_hpo_bench.data_models import DatasetID, DatasetName
 from rag_hpo_bench.hpo import AlgorithmConfig, TuneAndTestDataset, ExperimentsRunner
 from rag_hpo_bench.hpo.search_space import SearchSpace, SearchSpaceParameter
+from rag_hpo_bench.utils.logging_utils import init_logger
 
 logger = logging.getLogger(__name__)
 
@@ -55,65 +58,97 @@ def create_search_space() -> SearchSpace:
     return SearchSpace(parameters=parameters)
 
 
+def create_algorithm_configs() -> list[AlgorithmConfig]:
+    algorithm_configs = [
+        AlgorithmConfig(
+            algorithm_type="grid",
+            # Grid search is deterministic and doesn't use num_seeds
+        ),
+        AlgorithmConfig(
+            algorithm_type="random",
+            num_seeds=10,
+            additional_params={"n_trials": 10},
+        ),
+        AlgorithmConfig(
+            algorithm_type="greedy_m",
+            num_seeds=10,
+            additional_params={"n_trials": 10},
+        ),
+    ]
+    
+    return algorithm_configs
+
+
+def parse_args() -> argparse.Namespace:
+    """
+    Parse command-line arguments.
+    
+    Returns:
+        Parsed arguments namespace
+    """
+    parser = argparse.ArgumentParser(
+        description="Run multiple HPO experiments with different configurations"
+    )
+    parser.add_argument(
+        "--max-experiments",
+        type=int,
+        default=None,
+        help="Maximum number of experiments to run (default: run all experiments)",
+    )
+    return parser.parse_args()
+
+
 def main():
     """Main entry point for running HPO experiments."""
     
+    # Parse command-line arguments
+    args = parse_args()
+    
     # Configure logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
+    init_logger(level=logging.INFO)
     
     # Define dataset pairs (tune and test)
+    # Note: Split names must match the HuggingFace dataset: "Dev" for tuning, "Test" for testing
     dataset_pairs = [
         TuneAndTestDataset(
             tune=DatasetID(
                 dataset_name=DatasetName.ClapNQ,
-                split="train",
+                split="Dev",
             ),
             test=DatasetID(
                 dataset_name=DatasetName.ClapNQ,
-                split="test",
+                split="Test",
             ),
         ),
         TuneAndTestDataset(
             tune=DatasetID(
                 dataset_name=DatasetName.AIArxiv,
-                split="train",
+                split="Dev",
             ),
             test=DatasetID(
                 dataset_name=DatasetName.AIArxiv,
-                split="test",
+                split="Test",
             ),
         ),
     ]
     
-    # Define algorithm configurations
-    algorithm_configs = [
-        AlgorithmConfig(
-            algorithm_type="grid",
-        ),
-        AlgorithmConfig(
-            algorithm_type="random",
-            num_seeds=3,
-            additional_params={"n_trials": 20},
-        ),
-        AlgorithmConfig(
-            algorithm_type="bayesian",
-            num_seeds=5,
-            additional_params={"n_trials": 50},
-        ),
-    ]
-    
-    # Define optimization metrics
-    optimization_metrics = [
-        "answer_correctness",
-        "answer_relevance",
-        "faithfulness",
-    ]
+    # Create algorithm configurations
+    algorithm_configs = create_algorithm_configs()
     
     # Create search space
     search_space = create_search_space()
+    
+    # Define optimization metrics (available in rag_configurations_summary.csv)
+    # These metrics are used to evaluate and compare RAG configurations:
+    # - LLMaaJ-AC: LLM as a Judge - Answer Correctness
+    # - Lexical-AC: Lexical Answer Correctness
+    # - Lexical-FF: Lexical Faithfulness Score
+    # - context_correctness: Context Correctness
+    optimization_metrics = [
+        "LLMaaJ-AC",
+        "Lexical-AC",
+        "Lexical-FF",
+    ]
     
     # Create the ExperimentsRunner
     runner = ExperimentsRunner(
@@ -125,10 +160,17 @@ def main():
         skip_existing_tunes=True,
         skip_existing_test_results=True,
         clean_output_dir=False,
+        max_experiments=args.max_experiments,
     )
     
     # Log configuration
-    logger.info(f"Total experiments to run: {len(runner.hpo_experiments)}")
+    total_experiments = len(runner.hpo_experiments)
+    logger.info(f"Total experiments created: {total_experiments}")
+    if args.max_experiments is not None:
+        experiments_to_run = min(args.max_experiments, total_experiments)
+        logger.info(f"Will run: {experiments_to_run} experiments (limited by --max-experiments)")
+    else:
+        logger.info(f"Will run: all {total_experiments} experiments")
     logger.info(f"Dataset pairs: {len(dataset_pairs)}")
     logger.info(f"Algorithm configs: {len(algorithm_configs)}")
     logger.info(f"Optimization metrics: {len(optimization_metrics)}")

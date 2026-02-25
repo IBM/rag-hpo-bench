@@ -26,12 +26,13 @@ def sample_hf_dataframe():
         for chunk_overlap in [50, 100]:
             for top_k in [5, 10]:
                 data.append({
-                    "dataset_id": "name-AIArxiv_split-test",
-                    "chunking_size": chunk_size,
-                    "chunking_overlap": chunk_overlap,
-                    "embedding_model": "text-embedding-ada-002",
-                    "top-k": top_k,
-                    "generator": "gpt-3.5-turbo",
+                    "Dataset": "AIArxiv",
+                    "Split": "Test",
+                    "Chunk Size": chunk_size,
+                    "Chunk Overlap": chunk_overlap / chunk_size,  # Convert to ratio
+                    "Embedding Model": "text-embedding-ada-002",
+                    "Top-K": top_k,
+                    "Generative Model": "gpt-3.5-turbo",
                     "Lexical-AC": 0.70 + (chunk_size / 10000) + (top_k / 100),
                     "Lexical-FF": 0.75 + (chunk_size / 10000) + (top_k / 100),
                     "LLMaaJ-AC": 0.72 + (chunk_size / 10000) + (top_k / 100),
@@ -79,7 +80,7 @@ def sample_dataset_id():
     """Create a sample dataset ID."""
     return DatasetID(
         dataset_name=DatasetName.AIArxiv,
-        split="test",
+        split="Test",
     )
 
 

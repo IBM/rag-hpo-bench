@@ -10,7 +10,7 @@ from rag_hpo_bench.data_models.dataset_names import DatasetName
 @dataclass
 class DatasetID:
     dataset_name: DatasetName | str
-    split: Literal["train", "test"] | None = None
+    split: Literal["Dev", "Test"] | None = None
     sampling_params: DataSamplingParams = field(default_factory=DataSamplingParams)
 
     def __post_init__(self):

@@ -10,14 +10,12 @@ from rag_hpo_bench.data_models.dataset_names import DatasetName
 from rag_hpo_bench.hpo.hpo_experiment import HpoExperiment
 from rag_hpo_bench.hpo.hpo_results import HpoResults
 from rag_hpo_bench.hpo.search_space import SearchSpace, SearchSpaceParameter
+from rag_hpo_bench.utils.logging_utils import init_logger
 
 
 def setup_logging():
     """Configure logging for the experiment."""
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
+    init_logger(level=logging.INFO)
 
 
 def create_search_space() -> SearchSpace:
@@ -62,7 +60,7 @@ def create_tune_dataset() -> DatasetID:
     """Create the tuning dataset configuration."""
     return DatasetID(
         dataset_name=DatasetName.AIArxiv,
-        split="train"
+        split="Dev"
     )
 
 
@@ -70,7 +68,7 @@ def create_test_dataset() -> DatasetID:
     """Create the test dataset configuration."""
     return DatasetID(
         dataset_name=DatasetName.AIArxiv,
-        split="test"
+        split="Test"
     )
 
 

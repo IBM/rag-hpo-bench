@@ -93,6 +93,7 @@ class ExperimentsRunner:
         skip_existing_tunes: Whether to skip existing tune results
         skip_existing_test_results: Whether to skip existing test results
         clean_output_dir: Whether to clean output directory before running
+        max_experiments: Maximum number of experiments to run (None for unlimited)
     """
 
     search_space: SearchSpace
@@ -103,6 +104,7 @@ class ExperimentsRunner:
     skip_existing_tunes: bool = False
     skip_existing_test_results: bool = False
     clean_output_dir: bool = False
+    max_experiments: int | None = None
 
     def __post_init__(self):
         """Initialize and create all HPO experiments."""
@@ -172,16 +174,24 @@ class ExperimentsRunner:
         Returns:
             List of results from all experiments (None for failed experiments)
         """
-        logger.info(f"Starting execution of {len(self.hpo_experiments)} HPO experiments")
+        # Determine how many experiments to run
+        experiments_to_run = self.hpo_experiments
+        if self.max_experiments is not None and self.max_experiments < len(self.hpo_experiments):
+            experiments_to_run = self.hpo_experiments[:self.max_experiments]
+            logger.warning(
+                f"Limiting execution to {self.max_experiments} out of {len(self.hpo_experiments)} total experiments"
+            )
+        
+        logger.info(f"Starting execution of {len(experiments_to_run)} HPO experiments")
 
         all_results = []
         successful_count = 0
         failed_count = 0
 
-        for idx, hpo_experiment in enumerate(self.hpo_experiments, 1):
+        for idx, hpo_experiment in enumerate(experiments_to_run, 1):
             logger.info(
                 f"\n{'='*80}\n"
-                f"Running experiment {idx}/{len(self.hpo_experiments)}\n"
+                f"Running experiment {idx}/{len(experiments_to_run)}\n"
                 f"  Tune dataset: {hpo_experiment.tune_dataset.as_string()}\n"
                 f"  Test dataset: {hpo_experiment.test_dataset.as_string() if hpo_experiment.test_dataset else 'None'}\n"
                 f"  Algorithm: {hpo_experiment.algorithm_params['algorithm_type']}\n"
@@ -194,11 +204,11 @@ class ExperimentsRunner:
                 all_results.append(result)
                 successful_count += 1
                 logger.info(
-                    f"✓ Experiment {idx}/{len(self.hpo_experiments)} completed successfully"
+                    f"✓ Experiment {idx}/{len(experiments_to_run)} completed successfully"
                 )
             except Exception as e:
                 logger.error(
-                    f"✗ Experiment {idx}/{len(self.hpo_experiments)} failed with error: {e}",
+                    f"✗ Experiment {idx}/{len(experiments_to_run)} failed with error: {e}",
                     exc_info=True,
                 )
                 # Continue with next experiment even if one fails
@@ -208,8 +218,8 @@ class ExperimentsRunner:
         logger.info(
             f"\n{'='*80}\n"
             f"All experiments completed:\n"
-            f"  Successful: {successful_count}/{len(self.hpo_experiments)}\n"
-            f"  Failed: {failed_count}/{len(self.hpo_experiments)}\n"
+            f"  Successful: {successful_count}/{len(experiments_to_run)}\n"
+            f"  Failed: {failed_count}/{len(experiments_to_run)}\n"
             f"{'='*80}"
         )
 

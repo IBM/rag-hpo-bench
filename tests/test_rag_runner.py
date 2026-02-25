@@ -17,36 +17,39 @@ def sample_dataframe():
     """Create a sample DataFrame mimicking the HuggingFace dataset structure."""
     return pd.DataFrame([
         {
-            "dataset_id": "name-AIArxiv_split-test",
-            "chunking_size": 512,
-            "chunking_overlap": 50,
-            "embedding_model": "text-embedding-ada-002",
-            "top-k": 5,
-            "generator": "gpt-3.5-turbo",
+            "Dataset": "AIArxiv",
+            "Split": "Test",
+            "Chunk Size": 512,
+            "Chunk Overlap": 0,
+            "Embedding Model": "text-embedding-ada-002",
+            "Top-K": 5,
+            "Generative Model": "gpt-3.5-turbo",
             "Lexical-AC": 0.75,
             "Lexical-FF": 0.82,
             "LLMaaJ-AC": 0.78,
             "context_correctness": 0.85,
         },
         {
-            "dataset_id": "name-AIArxiv_split-test",
-            "chunking_size": 1024,
-            "chunking_overlap": 100,
-            "embedding_model": "text-embedding-ada-002",
-            "top-k": 10,
-            "generator": "gpt-4",
+            "Dataset": "AIArxiv",
+            "Split": "Test",
+            "Chunk Size": 1024,
+            "Chunk Overlap": 0.25,
+            "Embedding Model": "text-embedding-ada-002",
+            "Top-K": 10,
+            "Generative Model": "gpt-4",
             "Lexical-AC": 0.80,
             "Lexical-FF": 0.88,
             "LLMaaJ-AC": 0.83,
             "context_correctness": 0.90,
         },
         {
-            "dataset_id": "name-BioASQ_split-train",
-            "chunking_size": 512,
-            "chunking_overlap": 50,
-            "embedding_model": "text-embedding-ada-002",
-            "top-k": 5,
-            "generator": "gpt-3.5-turbo",
+            "Dataset": "BioASQ",
+            "Split": "Dev",
+            "Chunk Size": 512,
+            "Chunk Overlap": 0,
+            "Embedding Model": "text-embedding-ada-002",
+            "Top-K": 5,
+            "Generative Model": "gpt-3.5-turbo",
             "Lexical-AC": 0.70,
             "Lexical-FF": 0.77,
             "LLMaaJ-AC": 0.72,
@@ -72,7 +75,7 @@ def sample_dataset_id():
     """Create a sample dataset ID."""
     return DatasetID(
         dataset_name=DatasetName.AIArxiv,
-        split="test",
+        split="Test",
     )
 
 
@@ -142,21 +145,23 @@ class TestRagRunnerRun:
         # Create a dataframe where partial parameters match multiple rows
         df_with_duplicates = pd.DataFrame([
             {
-                "dataset_id": "name-AIArxiv_split-test",
-                "chunking_size": 512,
-                "chunking_overlap": 50,
-                "embedding_model": "text-embedding-ada-002",
-                "top-k": 5,
-                "generator": "gpt-3.5-turbo",
+                "Dataset": "AIArxiv",
+                "Split": "Test",
+                "Chunk Size": 512,
+                "Chunk Overlap": 0,
+                "Embedding Model": "text-embedding-ada-002",
+                "Top-K": 5,
+                "Generative Model": "gpt-3.5-turbo",
                 "Lexical-AC": 0.75,
             },
             {
-                "dataset_id": "name-AIArxiv_split-test",
-                "chunking_size": 512,
-                "chunking_overlap": 50,
-                "embedding_model": "text-embedding-ada-002",
-                "top-k": 5,
-                "generator": "gpt-4",  # Different generator
+                "Dataset": "AIArxiv",
+                "Split": "Test",
+                "Chunk Size": 512,
+                "Chunk Overlap": 0,
+                "Embedding Model": "text-embedding-ada-002",
+                "Top-K": 5,
+                "Generative Model": "gpt-4",  # Different generator
                 "Lexical-AC": 0.80,
             },
         ])
