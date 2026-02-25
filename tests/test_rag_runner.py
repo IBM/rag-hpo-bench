@@ -102,10 +102,10 @@ class TestRagRunnerRun:
         assert result.pattern_parameters == sample_pattern_parameters
         
         # Verify metric stats are extracted correctly
-        assert "answer_correctness" in result.metric_stats
-        assert "faithfulness" in result.metric_stats
-        assert result.metric_stats["answer_correctness"]["mean"] == 0.75
-        assert result.metric_stats["faithfulness"]["mean"] == 0.82
+        assert "Lexical-AC" in result.metric_stats
+        assert "Lexical-FF" in result.metric_stats
+        assert result.metric_stats["Lexical-AC"]["mean"] == 0.75
+        assert result.metric_stats["Lexical-FF"]["mean"] == 0.82
         
         # Verify evaluated_benchmark structure
         assert isinstance(result.evaluated_benchmark, pd.DataFrame)

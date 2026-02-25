@@ -114,8 +114,20 @@ class RagRunner:
         # Get the single matching row
         row = matched_rows.iloc[0]
         
-        # Extract metric results
-        metric_stats = self._extract_metric_stats(row)
+        # Extract metric values directly from the row
+        # Use CSV column names directly as metric IDs
+        metric_columns = [
+            "Lexical-AC",
+            "Lexical-FF",
+            "LLMaaJ-AC",
+            "context_correctness",
+        ]
+        
+        metric_stats = {}
+        for col_name in metric_columns:
+            if col_name in row.index and pd.notna(row[col_name]):
+                # Store just the mean value since we have a single result
+                metric_stats[col_name] = {"mean": float(row[col_name])}
         
         # Create a minimal evaluated_benchmark DataFrame
         # Since we don't have per-question data, create a summary row
@@ -130,38 +142,6 @@ class RagRunner:
         
         logger.info(f"Successfully loaded cached results with metrics: {list(metric_stats.keys())}")
         return pattern_results
-    
-    def _extract_metric_stats(self, row: pd.Series) -> dict[str, dict[str, float]]:
-        """
-        Extract metric statistics from the summary row.
-        
-        Args:
-            row: A row from the summary DataFrame
-            
-        Returns:
-            Dictionary mapping metric names to their statistics (mean, std, etc.)
-        """
-        metric_stats = {}
-        
-        # Use CSV column names directly as metric IDs
-        metric_columns = [
-            "Lexical-AC",
-            "Lexical-FF",
-            "LLMaaJ-AC",
-            "context_correctness",
-        ]
-        
-        for col_name in metric_columns:
-            if col_name in row.index and pd.notna(row[col_name]):
-                # Store as mean value (summary file typically has mean scores)
-                metric_stats[col_name] = {
-                    "mean": float(row[col_name]),
-                    "std": 0.0,  # Not available in summary
-                    "min": float(row[col_name]),
-                    "max": float(row[col_name]),
-                }
-        
-        return metric_stats
     
     def _create_evaluated_benchmark(
         self, row: pd.Series, metric_stats: dict[str, dict[str, float]]
