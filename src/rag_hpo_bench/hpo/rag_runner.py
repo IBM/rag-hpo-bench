@@ -48,12 +48,13 @@ class RagRunner:
         
         # Map parameter paths to column names in the summary file
         # Column names in HuggingFace dataset use title case with spaces
+        # These paths match the structure from search_space_factory.py
         param_mapping = {
-            "indexing.chunking.size": "Chunk Size",
-            "indexing.chunking.overlap": "Chunk Overlap",
-            "indexing.embedding.model": "Embedding Model",
-            "inference.retrieval.top-k": "Top-K",
-            "inference.generation.model": "Generative Model",
+            "data_pipeline.params.indexing.chunk_size": "Chunk Size",
+            "data_pipeline.params.indexing.chunk_overlap": "Chunk Overlap",
+            "data_pipeline.params.indexing.vector_space.embedding_model": "Embedding Model",
+            "inference_pipeline.params.retrieval.top_k": "Top-K",
+            "inference_pipeline.params.generation.generative_model": "Generative Model",
         }
         
         # Build filter conditions
@@ -101,11 +102,13 @@ class RagRunner:
             )
         
         if len(matched_rows) > 1:
+            matched_configs_str = matched_rows.to_string()
             raise ValueError(
                 f"Multiple matching configurations found (num matches: {len(matched_rows)}). "
                 f"This indicates missing parameters in the pattern_parameters. "
                 f"Please provide more specific parameters to uniquely identify a configuration. "
-                f"Filters used: {filters}"
+                f"Filters used: {filters}\n\n"
+                f"Matching configurations:\n{matched_configs_str}"
             )
         
         # Get the single matching row
@@ -140,18 +143,18 @@ class RagRunner:
         """
         metric_stats = {}
         
-        # Common metric column names from analyze_configs_distribution.py
-        metric_columns = {
-            "Lexical-AC": "answer_correctness",
-            "Lexical-FF": "faithfulness",
-            "LLMaaJ-AC": "ragas.answer_correctness.gpt-4o-mini-2024-07-18",
-            "context_correctness": "context_correctness",
-        }
+        # Use CSV column names directly as metric IDs
+        metric_columns = [
+            "Lexical-AC",
+            "Lexical-FF",
+            "LLMaaJ-AC",
+            "context_correctness",
+        ]
         
-        for col_name, metric_id in metric_columns.items():
+        for col_name in metric_columns:
             if col_name in row.index and pd.notna(row[col_name]):
                 # Store as mean value (summary file typically has mean scores)
-                metric_stats[metric_id] = {
+                metric_stats[col_name] = {
                     "mean": float(row[col_name]),
                     "std": 0.0,  # Not available in summary
                     "min": float(row[col_name]),

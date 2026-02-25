@@ -84,10 +84,10 @@ class MultiplePatternResults:
             file_name = f"{cls.default_file_name}.csv"
         return Path(path / file_name)
 
-    @staticmethod
-    def file_path(directory: Path, file_name=None):
+    @classmethod
+    def file_path(cls, directory: Path, file_name=None):
         if not file_name:
-            file_path = MultiplePatternResults.file_name(directory)
+            file_path = cls.file_name(directory)
         else:
             file_path = directory / file_name
         return file_path

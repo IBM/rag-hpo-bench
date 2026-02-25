@@ -42,6 +42,12 @@ def load_rag_configurations_summary() -> pd.DataFrame:
         # Load the CSV file into a pandas DataFrame
         df = pd.read_csv(csv_path)
         
+        # Convert integer columns to int type to avoid float/int comparison issues
+        int_columns = ["Chunk Size", "Top-K"]
+        for col in int_columns:
+            if col in df.columns:
+                df[col] = df[col].astype(int)
+        
         logger.info(f"Loaded {len(df)} RAG configurations")
         logger.debug(f"Columns: {list(df.columns)}")
         

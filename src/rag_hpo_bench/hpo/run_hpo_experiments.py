@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 def create_search_space() -> SearchSpace:
     """
     Create the search space for RAG experiments.
-    
+        
     Returns:
         SearchSpace with configured parameters
     """
@@ -38,7 +38,11 @@ def create_search_space() -> SearchSpace:
         ),
         SearchSpaceParameter(
             path=["data_pipeline", "params", "indexing", "vector_space", "embedding_model"],
-            values=["local/e5_large", "local/bge_large_1_5", "local/granite_embedding_125m"],
+            values=[
+                "BAAI/bge-large-en-v1.5",
+                "ibm/slate-125m-english-rtrvr",
+                "intfloat/multilingual-e5-large",
+            ],
         ),
         # Retrieval parameters
         SearchSpaceParameter(
@@ -49,9 +53,9 @@ def create_search_space() -> SearchSpace:
         SearchSpaceParameter(
             path=["inference_pipeline", "params", "generation", "generative_model"],
             values=[
-                "local/granite_3_1_8b_instruct",
-                "local/llama_3_1_8b_instruct",
-                "local/mistral_nemo_instruct",
+                "ibm-granite/granite-3.1-8b-instruct",
+                "meta-llama/llama-3-1-8b-instruct",
+                "mistral_nemo_instruct",
             ],
         ),
     ]
