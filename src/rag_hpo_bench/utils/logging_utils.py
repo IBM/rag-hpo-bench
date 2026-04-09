@@ -7,6 +7,8 @@ class ModuleNameFormatter(logging.Formatter):
     def format(self, record):
         # Extract only the module name from the full package path
         record.module_only = record.name.split('.')[-1]
+        # Add line number to the module name
+        record.module_with_line = f"{record.module_only}:{record.lineno}"
         return super().format(record)
 
 
@@ -22,7 +24,7 @@ def init_logger(level=logging.INFO):
     """
     handler = logging.StreamHandler()
     handler.setFormatter(ModuleNameFormatter(
-        fmt="%(asctime)s [%(levelname)s]  %(module_only)s: %(message)s"
+        fmt="%(asctime)s [%(levelname)s]  %(module_with_line)s: %(message)s"
     ))
     
     root_logger = logging.getLogger()
