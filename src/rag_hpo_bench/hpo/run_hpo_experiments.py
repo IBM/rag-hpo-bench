@@ -78,6 +78,11 @@ def create_algorithm_configs() -> list[AlgorithmConfig]:
             num_seeds=10,
             additional_params={"max_iterations": 10},
         ),
+        AlgorithmConfig(
+            algorithm_type="greedy_r",
+            num_seeds=10,
+            additional_params={"max_iterations": 10},
+        ),
     ]
     
     return algorithm_configs
@@ -113,27 +118,19 @@ def main():
     
     # Define dataset pairs (tune and test)
     # Note: Split names must match the HuggingFace dataset: "Dev" for tuning, "Test" for testing
+    # Create pairs for all available datasets
     dataset_pairs = [
         TuneAndTestDataset(
             tune=DatasetID(
-                dataset_name=DatasetName.ClapNQ,
+                dataset_name=dataset_name,
                 split="Dev",
             ),
             test=DatasetID(
-                dataset_name=DatasetName.ClapNQ,
+                dataset_name=dataset_name,
                 split="Test",
             ),
-        ),
-        TuneAndTestDataset(
-            tune=DatasetID(
-                dataset_name=DatasetName.AIArxiv,
-                split="Dev",
-            ),
-            test=DatasetID(
-                dataset_name=DatasetName.AIArxiv,
-                split="Test",
-            ),
-        ),
+        )
+        for dataset_name in DatasetName
     ]
     
     # Create algorithm configurations
@@ -185,7 +182,7 @@ def main():
     
     # Report results
     successful_results = [r for r in results if r is not None]
-    logger.info(f"Completed: {len(successful_results)}/{len(results)} experiments successful")
+    logger.info(f"Completed: {len(successful_results)}/{len(results)} experiments successfuly.")
     
     return results
 
