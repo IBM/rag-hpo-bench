@@ -113,7 +113,7 @@ class TuneAndTestRunner:
         for max_iteration, best_config in enumerate(
             per_iteration_best_configs, start=1
         ):
-            logger.info(
+            logger.debug(
                 f"Running on test, best configuration for metric '{optimization_metric_id}' "
                 f"at max_iteration {max_iteration} is : '{best_config}'."
             )
