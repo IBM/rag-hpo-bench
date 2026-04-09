@@ -5,7 +5,13 @@ from pathlib import Path
 from typing import Any
 
 from rag_hpo_bench.data_models import DatasetID
-from rag_hpo_bench.hpo.hpo_algorithm import GreedyMHPO, GridHPO, HpoAlgorithmType, RandomHPO
+from rag_hpo_bench.hpo.hpo_algorithm import (
+    GreedyMHPO,
+    GreedyRHPO,
+    GridHPO,
+    HpoAlgorithmType,
+    RandomHPO,
+)
 from rag_hpo_bench.hpo.hpo_results import HpoResults
 from rag_hpo_bench.hpo.rag_runner import RagRunner
 from rag_hpo_bench.hpo.search_space import PatternParameters, SearchSpace
@@ -34,6 +40,12 @@ def _new_hpo_algorithm(
             )
         case HpoAlgorithmType.GREEDY_M:
             return GreedyMHPO(
+                search_space=search_space,
+                objective_function=objective_function,
+                **algorithm_params_copy,
+            )
+        case HpoAlgorithmType.GREEDY_R:
+            return GreedyRHPO(
                 search_space=search_space,
                 objective_function=objective_function,
                 **algorithm_params_copy,

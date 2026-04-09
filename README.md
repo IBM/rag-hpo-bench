@@ -43,7 +43,7 @@ To run HPO experiments with the RAG-HPO-bench dataset:
 
    This will run multiple HPO experiments with different combinations of:
    - **Datasets**: ClapNQ, AIArxiv (with Dev/Test splits)
-   - **Algorithms**: Grid search, Random search, Greedy-M
+   - **Algorithms**: Grid search, Random search, Greedy-M, Greedy-R
    - **Optimization metrics**: LLMaaJ-AC, Lexical-AC, Lexical-FF
 
 2. **Limit the number of experiments** (optional):

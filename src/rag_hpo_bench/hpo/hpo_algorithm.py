@@ -24,6 +24,7 @@ class HpoAlgorithmType(str, Enum):
     RANDOM = "random"
     GRID = "grid"
     GREEDY_M = "greedy_m"
+    GREEDY_R = "greedy_r"
 
 
 class HpoAlgorithmModel(BaseModel):
@@ -109,10 +110,12 @@ class GridHPO(HpoAlgorithm):
 
 
 @dataclass(kw_only=True)
-class GreedyMHPO(HpoAlgorithm):
+class GreedyHPO(HpoAlgorithm):
     """
-    Run a greedy search over all search space parameter combinations. It starts by optimizing the Model parameters
-
+    Base class for greedy search algorithms over search space parameter combinations.
+    
+    Greedy algorithms optimize parameters sequentially in a specified order, fixing each
+    parameter to its optimal value before moving to the next.
     """
 
     seed: int
@@ -120,7 +123,7 @@ class GreedyMHPO(HpoAlgorithm):
     def __post_init__(self):
         assert (
             self.max_iterations
-        ), f"It does not make sense to run GreedyM without max_iterations limit - use {HpoAlgorithmType.RANDOM} type"
+        ), f"It does not make sense to run Greedy search without max_iterations limit - use {HpoAlgorithmType.RANDOM} type"
         random.seed(self.seed)
 
         # Help dict
@@ -137,21 +140,18 @@ class GreedyMHPO(HpoAlgorithm):
                 param_name = RagParameterName(param_name)
             self.param_to_values[param_name] = pattern_parameter_list
 
-        self.search_space_parameters_list_model_first: list[RagParameterName] = [
-            RagParameterName.GENERATIVE_MODEL,
-            RagParameterName.EMBEDDING_MODEL,
-            RagParameterName.CHUNK_SIZE,
-            RagParameterName.CHUNK_OVERLAP,
-            RagParameterName.TOP_K,
-        ]
+    @abstractmethod
+    def get_parameter_order(self) -> list[RagParameterName]:
+        """Return the order in which parameters should be optimized."""
+        pass
 
     def _get_possible_params_combination(
         self,
         to_be_optimized: RagParameterName,
-        optimized_params: dict[RagParameterName, any],
+        optimized_params: dict[RagParameterName, RagParameter],
     ) -> list[PatternParameters]:
 
-        run_parameters: dict[RagParameterName, any] = dict()
+        run_parameters: dict[RagParameterName, RagParameter] = dict()
         for parameter_name in self.param_to_values.keys():
             if parameter_name != to_be_optimized:  # We skip the param to be optimized
                 if (
@@ -166,7 +166,7 @@ class GreedyMHPO(HpoAlgorithm):
         to_be_optimized_values = self.param_to_values[to_be_optimized]
         random.shuffle(to_be_optimized_values)
 
-        combinations: list[dict[RagParameterName, any]] = list()
+        combinations: list[dict[RagParameterName, RagParameter]] = list()
         for v in to_be_optimized_values:
             full_run_parameters = run_parameters.copy()
             full_run_parameters[to_be_optimized] = v
@@ -179,12 +179,12 @@ class GreedyMHPO(HpoAlgorithm):
 
         pattern_results = []
 
-        optimized_params: dict[RagParameterName, any] = dict()
+        optimized_params: dict[RagParameterName, RagParameter] = dict()
         seen_configs = set()
         pattern_index = 0
         done: bool = False
         param: RagParameterName
-        for param in self.search_space_parameters_list_model_first:
+        for param in self.get_parameter_order():
             spanned_search_space: list[PatternParameters] = (
                 self._get_possible_params_combination(
                     to_be_optimized=param, optimized_params=optimized_params
@@ -206,7 +206,7 @@ class GreedyMHPO(HpoAlgorithm):
                 pattern_results.append(pattern_result)
                 score = pattern_result.metric_stats[self.optimization_metric_id]["mean"]
                 pattern_index += 1
-                done = (
+                done = self.max_iterations is not None and (
                     pattern_index >= self.max_iterations
                 )  # We have reached the limit to explore
                 if not optimum_score or score < optimum_score:
@@ -223,3 +223,52 @@ class GreedyMHPO(HpoAlgorithm):
                             break
 
         return HpoResults.create(pattern_results)
+
+
+
+@dataclass(kw_only=True)
+class GreedyMHPO(GreedyHPO):
+    """
+    Greedy search that optimizes Model parameters first, then Retrieval parameters.
+    
+    Parameter optimization order:
+    1. GENERATIVE_MODEL (Generation model)
+    2. EMBEDDING_MODEL (Retrieval)
+    3. CHUNK_SIZE (Retrieval)
+    4. CHUNK_OVERLAP (Retrieval)
+    5. TOP_K (Retrieval)
+    """
+
+    def get_parameter_order(self) -> list[RagParameterName]:
+        """Return model-first parameter optimization order."""
+        return [
+            RagParameterName.GENERATIVE_MODEL,
+            RagParameterName.EMBEDDING_MODEL,
+            RagParameterName.CHUNK_SIZE,
+            RagParameterName.CHUNK_OVERLAP,
+            RagParameterName.TOP_K,
+        ]
+
+
+@dataclass(kw_only=True)
+class GreedyRHPO(GreedyHPO):
+    """
+    Greedy search that optimizes Retrieval parameters first, then Generation parameters.
+    
+    Parameter optimization order:
+    1. EMBEDDING_MODEL (Retrieval)
+    2. CHUNK_SIZE (Retrieval)
+    3. CHUNK_OVERLAP (Retrieval)
+    4. GENERATIVE_MODEL (Generation model)
+    5. TOP_K (Number of retrieved chunks)
+    """
+
+    def get_parameter_order(self) -> list[RagParameterName]:
+        """Return retrieval-first parameter optimization order."""
+        return [
+            RagParameterName.EMBEDDING_MODEL,
+            RagParameterName.CHUNK_SIZE,
+            RagParameterName.CHUNK_OVERLAP,
+            RagParameterName.GENERATIVE_MODEL,
+            RagParameterName.TOP_K,
+        ]

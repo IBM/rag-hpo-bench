@@ -78,6 +78,11 @@ def create_algorithm_configs() -> list[AlgorithmConfig]:
             num_seeds=10,
             additional_params={"max_iterations": 10},
         ),
+        AlgorithmConfig(
+            algorithm_type="greedy_r",
+            num_seeds=10,
+            additional_params={"max_iterations": 10},
+        ),
     ]
     
     return algorithm_configs
