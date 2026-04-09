@@ -1,5 +1,5 @@
 <!-- This should be the location of the title of the repository, normally the short name -->
-# RAG HPO Bench (Under construction)
+# RAG HPO Bench
 
 <!-- Build Status, is a great thing to have at the top of your repository, it shows that you take your CI/CD as first class citizens -->
 <!-- [![Build Status](https://travis-ci.org/jjasghar/ibm-cloud-cli.svg?branch=master)](https://travis-ci.org/jjasghar/ibm-cloud-cli) -->
@@ -7,16 +7,57 @@
 <!-- Not always needed, but a scope helps the user understand in a short sentance like below, why this repo exists -->
 
 
-This project contains code accompanying the paper
-[An Analysis of Hyper-Parameter Optimization Methods for Retrieval Augmented Generation](https://arxiv.org/abs/2505.03452).
+## Overview
 
-The paper released a dataset called [RAG-HPO-bench](https://huggingface.co/datasets/matanor/rag-hpo-bench) which includes RAG results of multiple RAG
-configurations over a search space of 162 parameter combinations. 
-Building on these results, further research can explore
-new HPO techniques without incurring the substantial cost
-of running many RAG configuration across datasets.
+Exploring hyperparameter optimization (HPO) for RAG systems is expensive, as running experiments across multiple configurations and datasets requires significant computational resources. **RAG-HPO-bench** solves this problem by providing pre-computed results for 162 RAG configurations, enabling researchers to develop and test new HPO algorithms without the computational overhead.
 
-This repository contains code examples with analysis using the RAG-HPO-bench dataset.
+This repository accompanies our paper [An Analysis of Hyper-Parameter Optimization Methods for Retrieval Augmented Generation](https://arxiv.org/abs/2505.03452) and provides:
+
+- 📊 **[RAG-HPO-bench dataset](https://huggingface.co/datasets/matanor/rag-hpo-bench)**: Pre-computed RAG evaluation results across 162 parameter combinations
+- 🔬 **Analysis tools**: Code examples for exploring HPO techniques and finding optimal configurations
+- 🚀 **Quick experimentation**: Test new HPO algorithms without expensive RAG pipeline runs
+
+**Use this benchmark to:**
+- Develop novel HPO algorithms for RAG systems
+- Compare optimization strategies across different datasets
+
+## Installation
+
+```bash
+# Install the package
+uv pip install -e .
+```
+
+**Note:** `uv` will automatically create and use a virtual environment if one doesn't exist. For manual virtual environment setup and other installation options, see [INSTALL.md](INSTALL.md).
+
+## Usage
+
+### HPO
+
+To run HPO experiments with the RAG-HPO-bench dataset:
+
+1. **Run HPO experiments**:
+   ```bash
+   uv run python -m rag_hpo_bench.hpo.run_hpo_experiments
+   ```
+
+   This will run multiple HPO experiments with different combinations of:
+   - **Datasets**: ClapNQ, AIArxiv (with Dev/Test splits)
+   - **Algorithms**: Grid search, Random search, Greedy-M
+   - **Optimization metrics**: LLMaaJ-AC, Lexical-AC, Lexical-FF
+
+2. **Limit the number of experiments** (optional):
+   ```bash
+   uv run python -m rag_hpo_bench.hpo.run_hpo_experiments --max-experiments 5
+   ```
+
+Results will be saved to `./experiments_output/` with subdirectories organized by algorithm, dataset, and metric.
+
+### Other Usage Examples
+
+For additional usage examples, see the [examples/README.md](examples/README.md) which includes scripts for:
+- Finding best configurations across datasets
+- Analyzing RAG configuration results
 
 ## Notes
 
