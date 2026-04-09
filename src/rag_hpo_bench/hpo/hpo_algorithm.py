@@ -130,7 +130,12 @@ class GreedyMHPO(HpoAlgorithm):
             pattern_parameter_list: list[RagParameter] = param.as_single_values()
             # We sort according to the value
             pattern_parameter_list.sort(key=lambda parameter: parameter.value)
-            self.param_to_values[param.name] = pattern_parameter_list
+            # Extract parameter name from the last element of the path
+            param_name = param.path[-1]
+            # Convert string to RagParameterName enum if needed
+            if isinstance(param_name, str):
+                param_name = RagParameterName(param_name)
+            self.param_to_values[param_name] = pattern_parameter_list
 
         self.search_space_parameters_list_model_first: list[RagParameterName] = [
             RagParameterName.GENERATIVE_MODEL,
@@ -209,7 +214,11 @@ class GreedyMHPO(HpoAlgorithm):
                     optimum_score = score
                     # We extract the value for this param:
                     for search_parameter in pattern_parameters.pattern_params:
-                        if param == search_parameter.name:
+                        # Compare with the last element of the path
+                        search_param_name = search_parameter.path[-1]
+                        if isinstance(search_param_name, str):
+                            search_param_name = RagParameterName(search_param_name)
+                        if param == search_param_name:
                             optimized_params[param] = search_parameter
                             break
 

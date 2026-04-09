@@ -140,7 +140,7 @@ class RagRunner:
             metric_stats=metric_stats,
         )
         
-        logger.info(f"Successfully loaded cached results with metrics: {list(metric_stats.keys())}")
+        logger.debug(f"Successfully ran rag pettern with parameters {pattern_parameters}.")
         return pattern_results
     
     def _create_evaluated_benchmark(

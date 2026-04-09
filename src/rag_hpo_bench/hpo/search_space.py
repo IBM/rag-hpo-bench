@@ -1,5 +1,6 @@
 import ast
 import copy
+import hashlib
 import itertools
 import json
 import logging
@@ -11,6 +12,18 @@ from typing import Any, Mapping
 from pydantic import BaseModel, ConfigDict
 
 logger = logging.getLogger(__name__)
+
+
+def get_hash_dict(d: dict) -> str:
+    """Generate a hash from a dictionary by serializing and hashing it."""
+    def fallback_serializer(obj):
+        return str(obj)
+    
+    sorted_dict_items = sorted(d.items())
+    s = json.dumps(sorted_dict_items, default=fallback_serializer)
+    hash_object = hashlib.md5()
+    hash_object.update(s.encode("utf-8"))
+    return hash_object.hexdigest()
 
 
 class RagParameterName(str, Enum):
@@ -168,6 +181,10 @@ class PatternParameters:
                         f"Conflict at key '{k}': cannot merge non mapping type: {type(destination[k])} and {type(v)}.\n"
                         f"destination: {destination[k]}\nsource: {v}"
                     )
+
+    def to_hash(self) -> str:
+        """Generate a hash from the pattern parameters for deduplication."""
+        return get_hash_dict({"_".join(p.path): p.value for p in self.pattern_params})
 
     @staticmethod
     def from_dict(pattern_parameters_dict: dict):
