@@ -71,12 +71,12 @@ def create_algorithm_configs() -> list[AlgorithmConfig]:
         AlgorithmConfig(
             algorithm_type="random",
             num_seeds=10,
-            additional_params={"n_trials": 10},
+            additional_params={"max_iterations": 10},
         ),
         AlgorithmConfig(
             algorithm_type="greedy_m",
             num_seeds=10,
-            additional_params={"n_trials": 10},
+            additional_params={"max_iterations": 10},
         ),
     ]
     
@@ -161,8 +161,8 @@ def main():
         algorithm_configs=algorithm_configs,
         optimization_metrics=optimization_metrics,
         output_path=Path("./experiments_output"),
-        skip_existing_tunes=True,
-        skip_existing_test_results=True,
+        skip_existing_tunes=False,
+        skip_existing_test_results=False,
         clean_output_dir=False,
         max_experiments=args.max_experiments,
     )

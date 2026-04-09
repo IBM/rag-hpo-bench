@@ -77,7 +77,7 @@ class RagRunner:
             filters["Dataset"] = dataset_id_str
         
         # Filter the dataframe
-        logger.info(f"Filtering with: {filters}")
+        logger.debug(f"Filtering with: {filters}")
         
         # Check for missing columns first and raise exception if any are missing
         missing_columns = [col_name for col_name in filters.keys() if col_name not in df.columns]

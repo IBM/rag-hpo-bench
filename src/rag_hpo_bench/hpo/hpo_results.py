@@ -22,7 +22,7 @@ class HpoResults(MultiplePatternResults):
         self,
         metric_id: str,
         num_best_configs_to_consider: int = 1,
-        max_iterations: int = None,
+        max_iterations: int | None = None,
     ) -> list[PatternParameters]:
         per_iteration_results = self._results_summary
         if max_iterations:
