@@ -209,7 +209,7 @@ class GreedyHPO(HpoAlgorithm):
                 done = self.max_iterations is not None and (
                     pattern_index >= self.max_iterations
                 )  # We have reached the limit to explore
-                if not optimum_score or score < optimum_score:
+                if not optimum_score or score > optimum_score:
                     # We got a better score for this configuration - we keep the parameter value
                     optimum_score = score
                     # We extract the value for this param:
