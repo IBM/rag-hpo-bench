@@ -56,6 +56,8 @@ def mock_objective_function():
     - Smaller top_k is better (3 > 5 > 10)
     - gen-model-1 is better than gen-model-2
     """
+    import pandas as pd
+    
     def objective_function(pattern_parameters: PatternParameters) -> PatternResults:
         # Extract parameter values
         params_dict = {}
@@ -97,16 +99,113 @@ def mock_objective_function():
             score += 0.1
         # gen-model-2 adds nothing (worst)
         
-        # Create mock pattern results
-        mock_result = MagicMock(spec=PatternResults)
-        mock_result.metric_stats = {
-            "test_metric": {"mean": score}
-        }
-        mock_result.name = "Pattern_0"
+        # Create a proper PatternResults object with required fields
+        evaluated_benchmark = pd.DataFrame([{
+            "q_id": "test_q1",
+            "question": "test question",
+            "ground_truths": ["test answer"],
+            "ground_truths_context_ids": ["ctx1"],
+            "prompt": "test prompt",
+            "prompt_tokens": 10,
+            "answer": "test answer",
+            "output_tokens": 5,
+            "input_tokens": 10,
+        }])
         
-        return mock_result
+        metric_stats = {
+            "test_metric": {"mean": score, "std": 0.0}
+        }
+        
+        return PatternResults(
+            pattern_parameters=pattern_parameters,
+            evaluated_benchmark=evaluated_benchmark,
+            metric_stats=metric_stats,
+            name="Pattern_0"
+        )
     
     return objective_function
+
+
+class TestGreedyAlgorithmsCommon:
+    """Common tests for both GreedyMHPO and GreedyRHPO algorithms."""
+    
+    @pytest.mark.parametrize("algorithm_class", [GreedyMHPO, GreedyRHPO])
+    def test_search_finds_optimal_config(
+        self, algorithm_class, sample_search_space, mock_objective_function
+    ):
+        """Test that greedy algorithms find good configurations within iteration limit."""
+        greedy_algo = algorithm_class(
+            search_space=sample_search_space,
+            optimization_metric_id="test_metric",
+            objective_function=mock_objective_function,
+            max_iterations=20,
+            seed=42,
+        )
+        
+        # Run search
+        results = greedy_algo.search()
+        
+        # Verify results
+        assert results is not None
+        assert results.size() <= 20  # Should not exceed max_iterations
+        assert results.size() > 0  # Should have at least one result
+        
+        # Get best configuration
+        best_configs = results.get_best_configs(
+            metric_id="test_metric",
+            num_best_configs_to_consider=1
+        )
+        assert len(best_configs) == 1
+        assert best_configs[0] is not None
+    
+    @pytest.mark.parametrize("algorithm_class", [GreedyMHPO, GreedyRHPO])
+    def test_max_iterations_respected(
+        self, algorithm_class, sample_search_space, mock_objective_function
+    ):
+        """Test that greedy algorithms respect max_iterations limit."""
+        max_iter = 10
+        greedy_algo = algorithm_class(
+            search_space=sample_search_space,
+            optimization_metric_id="test_metric",
+            objective_function=mock_objective_function,
+            max_iterations=max_iter,
+            seed=42,
+        )
+        
+        results = greedy_algo.search()
+        
+        # Should not exceed max_iterations
+        assert results.size() <= max_iter
+    
+    @pytest.mark.parametrize("algorithm_class", [GreedyMHPO, GreedyRHPO])
+    def test_seed_reproducibility(
+        self, algorithm_class, sample_search_space, mock_objective_function
+    ):
+        """Test that same seed produces same results."""
+        seed = 123
+        
+        # Run 1
+        greedy_algo1 = algorithm_class(
+            search_space=sample_search_space,
+            optimization_metric_id="test_metric",
+            objective_function=mock_objective_function,
+            max_iterations=15,
+            seed=seed,
+        )
+        results1 = greedy_algo1.search()
+        
+        # Run 2 with same seed
+        greedy_algo2 = algorithm_class(
+            search_space=sample_search_space,
+            optimization_metric_id="test_metric",
+            objective_function=mock_objective_function,
+            max_iterations=15,
+            seed=seed,
+        )
+        results2 = greedy_algo2.search()
+        
+        # Results should be identical
+        assert results1.size() == results2.size()
 
 
 class TestGreedyMHPO:
@@ -132,8 +231,10 @@ class TestGreedyMHPO:
         ]
         assert greedy_m.get_parameter_order() == expected_order
     
-    def test_search_finds_optimal_config(self, sample_search_space, mock_objective_function):
-        """Test that GreedyMHPO finds a good configuration within iteration limit."""
+    def test_optimizes_generative_model_first(
+        self, sample_search_space, mock_objective_function
+    ):
+        """Test that GreedyMHPO optimizes generative model first."""
         greedy_m = GreedyMHPO(
             search_space=sample_search_space,
             optimization_metric_id="test_metric",
@@ -142,74 +243,15 @@ class TestGreedyMHPO:
             seed=42,
         )
         
-        # Run search
         results = greedy_m.search()
-        
-        # Verify results
-        assert results is not None
-        assert results.size() <= 20  # Should not exceed max_iterations
-        assert results.size() > 0  # Should have at least one result
-        
-        # Get best configuration
         best_configs = results.get_best_configs(
             metric_id="test_metric",
             num_best_configs_to_consider=1
         )
-        assert len(best_configs) == 1
-        
-        # Verify the best config has good parameter values
         best_params = best_configs[0].get_path_to_values_dict()
         
-        # Based on our mock objective function, optimal values should be:
-        # - gen-model-1 (optimized first in model-first order)
-        # - model-a for embedding
-        # - 256 for chunk_size
-        # - 50 for chunk_overlap
-        # - 3 for top_k
+        # Should optimize generative model first (model-first order)
         assert best_params["inference.generation.generative_model"] == "gen-model-1"
-    
-    def test_max_iterations_respected(self, sample_search_space, mock_objective_function):
-        """Test that GreedyMHPO respects max_iterations limit."""
-        max_iter = 10
-        greedy_m = GreedyMHPO(
-            search_space=sample_search_space,
-            optimization_metric_id="test_metric",
-            objective_function=mock_objective_function,
-            max_iterations=max_iter,
-            seed=42,
-        )
-        
-        results = greedy_m.search()
-        
-        # Should not exceed max_iterations
-        assert results.size() <= max_iter
-    
-    def test_seed_reproducibility(self, sample_search_space, mock_objective_function):
-        """Test that same seed produces same results."""
-        seed = 123
-        
-        # Run 1
-        greedy_m1 = GreedyMHPO(
-            search_space=sample_search_space,
-            optimization_metric_id="test_metric",
-            objective_function=mock_objective_function,
-            max_iterations=15,
-            seed=seed,
-        )
-        results1 = greedy_m1.search()
-        
-        # Run 2 with same seed
-        greedy_m2 = GreedyMHPO(
-            search_space=sample_search_space,
-            optimization_metric_id="test_metric",
-            objective_function=mock_objective_function,
-            max_iterations=15,
-            seed=seed,
-        )
-        results2 = greedy_m2.search()
-        
-        # Results should be identical
-        assert results1.size() == results2.size()
 
 
 class TestGreedyRHPO:
@@ -235,8 +277,10 @@ class TestGreedyRHPO:
         ]
         assert greedy_r.get_parameter_order() == expected_order
     
-    def test_search_finds_optimal_config(self, sample_search_space, mock_objective_function):
-        """Test that GreedyRHPO finds a good configuration within iteration limit."""
+    def test_optimizes_embedding_model_first(
+        self, sample_search_space, mock_objective_function
+    ):
+        """Test that GreedyRHPO optimizes embedding model first."""
         greedy_r = GreedyRHPO(
             search_space=sample_search_space,
             optimization_metric_id="test_metric",
@@ -245,82 +289,15 @@ class TestGreedyRHPO:
             seed=42,
         )
         
-        # Run search
         results = greedy_r.search()
-        
-        # Verify results
-        assert results is not None
-        assert results.size() <= 20  # Should not exceed max_iterations
-        assert results.size() > 0  # Should have at least one result
-        
-        # Get best configuration
         best_configs = results.get_best_configs(
             metric_id="test_metric",
             num_best_configs_to_consider=1
         )
-        assert len(best_configs) == 1
-        
-        # Verify the best config has good parameter values
         best_params = best_configs[0].get_path_to_values_dict()
         
-        # Based on our mock objective function, optimal values should be:
-        # - model-a for embedding (optimized first in retrieval-first order)
-        # - 256 for chunk_size
-        # - 50 for chunk_overlap
-        # - gen-model-1
-        # - 3 for top_k
+        # Should optimize embedding model first (retrieval-first order)
         assert best_params["indexing.embedding.embedding_model"] == "model-a"
-    
-    def test_max_iterations_respected(self, sample_search_space, mock_objective_function):
-        """Test that GreedyRHPO respects max_iterations limit."""
-        max_iter = 10
-        greedy_r = GreedyRHPO(
-            search_space=sample_search_space,
-            optimization_metric_id="test_metric",
-            objective_function=mock_objective_function,
-            max_iterations=max_iter,
-            seed=42,
-        )
-        
-        results = greedy_r.search()
-        
-        # Should not exceed max_iterations
-        assert results.size() <= max_iter
-    
-    def test_different_from_greedy_m(self, sample_search_space, mock_objective_function):
-        """Test that GreedyRHPO explores different configurations than GreedyMHPO."""
-        seed = 42
-        max_iter = 15
-        
-        # Run GreedyMHPO
-        greedy_m = GreedyMHPO(
-            search_space=sample_search_space,
-            optimization_metric_id="test_metric",
-            objective_function=mock_objective_function,
-            max_iterations=max_iter,
-            seed=seed,
-        )
-        results_m = greedy_m.search()
-        
-        # Run GreedyRHPO
-        greedy_r = GreedyRHPO(
-            search_space=sample_search_space,
-            optimization_metric_id="test_metric",
-            objective_function=mock_objective_function,
-            max_iterations=max_iter,
-            seed=seed,
-        )
-        results_r = greedy_r.search()
-        
-        # Both should find results
-        assert results_m.size() > 0
-        assert results_r.size() > 0
-        
-        # The algorithms should explore parameters in different orders,
-        # so they may find different configurations (though both should be good)
-        # We just verify they both complete successfully
-        assert results_m is not None
-        assert results_r is not None
 
 
 class TestGreedyAlgorithmsComparison:
@@ -374,4 +351,3 @@ class TestGreedyAlgorithmsComparison:
         assert best_m_params["inference.generation.generative_model"] == "gen-model-1"
         assert best_r_params["indexing.embedding.embedding_model"] == "model-a"
 
-# Made with Bob
