@@ -67,11 +67,17 @@ def sample_pattern_parameters():
     """Create sample pattern parameters."""
     return PatternParameters(
         [
-            RagParameter(path=["indexing", "chunking", "size"], value=512),
-            RagParameter(path=["indexing", "chunking", "overlap"], value=50),
-            RagParameter(path=["indexing", "embedding", "model"], value="text-embedding-ada-002"),
-            RagParameter(path=["inference", "retrieval", "top-k"], value=5),
-            RagParameter(path=["inference", "generation", "model"], value="gpt-3.5-turbo"),
+            RagParameter(path=["data_pipeline", "params", "indexing", "chunk_size"], value=512),
+            RagParameter(path=["data_pipeline", "params", "indexing", "chunk_overlap"], value=0),
+            RagParameter(
+                path=["data_pipeline", "params", "indexing", "vector_space", "embedding_model"],
+                value="text-embedding-ada-002",
+            ),
+            RagParameter(path=["inference_pipeline", "params", "retrieval", "top_k"], value=5),
+            RagParameter(
+                path=["inference_pipeline", "params", "generation", "generative_model"],
+                value="gpt-3.5-turbo",
+            ),
         ]
     )
 
@@ -126,12 +132,22 @@ class TestRagRunnerRun:
         # Create parameters that don't match any row
         non_matching_params = PatternParameters(
             [
-                RagParameter(path=["indexing", "chunking", "size"], value=2048),
-                RagParameter(path=["indexing", "chunking", "overlap"], value=200),
-                RagParameter(path=["indexing", "embedding", "model"], value="non-existent-model"),
-                RagParameter(path=["inference", "retrieval", "top-k"], value=100),
                 RagParameter(
-                    path=["inference", "generation", "model"], value="non-existent-generator"
+                    path=["data_pipeline", "params", "indexing", "chunk_size"], value=2048
+                ),
+                RagParameter(
+                    path=["data_pipeline", "params", "indexing", "chunk_overlap"], value=200
+                ),
+                RagParameter(
+                    path=["data_pipeline", "params", "indexing", "vector_space", "embedding_model"],
+                    value="non-existent-model",
+                ),
+                RagParameter(
+                    path=["inference_pipeline", "params", "retrieval", "top_k"], value=100
+                ),
+                RagParameter(
+                    path=["inference_pipeline", "params", "generation", "generative_model"],
+                    value="non-existent-generator",
                 ),
             ]
         )
@@ -179,12 +195,15 @@ class TestRagRunnerRun:
         # Only specify parameters that match both rows (missing generator)
         partial_params = PatternParameters(
             [
-                RagParameter(path=["indexing", "chunking", "size"], value=512),
-                RagParameter(path=["indexing", "chunking", "overlap"], value=50),
+                RagParameter(path=["data_pipeline", "params", "indexing", "chunk_size"], value=512),
                 RagParameter(
-                    path=["indexing", "embedding", "model"], value="text-embedding-ada-002"
+                    path=["data_pipeline", "params", "indexing", "chunk_overlap"], value=0
                 ),
-                RagParameter(path=["inference", "retrieval", "top-k"], value=5),
+                RagParameter(
+                    path=["data_pipeline", "params", "indexing", "vector_space", "embedding_model"],
+                    value="text-embedding-ada-002",
+                ),
+                RagParameter(path=["inference_pipeline", "params", "retrieval", "top_k"], value=5),
             ]
         )
 

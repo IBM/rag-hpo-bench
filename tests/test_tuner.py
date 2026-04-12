@@ -24,14 +24,14 @@ def sample_hf_dataframe():
     # Create a comprehensive dataset with all combinations of the search space
     data = []
     for chunk_size in [512, 1024]:
-        for chunk_overlap in [50, 100]:
+        for chunk_overlap_ratio in [0.25, 0.5]:
             for top_k in [5, 10]:
                 data.append(
                     {
                         "Dataset": "AIArxiv",
                         "Split": "Test",
                         "Chunk Size": chunk_size,
-                        "Chunk Overlap": chunk_overlap / chunk_size,  # Convert to ratio
+                        "Chunk Overlap": chunk_overlap_ratio,
                         "Embedding Model": "text-embedding-ada-002",
                         "Top-K": top_k,
                         "Generative Model": "gpt-3.5-turbo",
@@ -47,16 +47,25 @@ def sample_hf_dataframe():
 @pytest.fixture
 def sample_search_space():
     """Create a sample search space with multiple parameters."""
+    # Note: chunk_overlap values must be ratios that match the dataframe (0.25 and 0.5)
     return SearchSpace(
         parameters=[
-            SearchSpaceParameter(path=["indexing", "chunking", "size"], values=[512, 1024]),
-            SearchSpaceParameter(path=["indexing", "chunking", "overlap"], values=[50, 100]),
             SearchSpaceParameter(
-                path=["indexing", "embedding", "model"], values=["text-embedding-ada-002"]
+                path=["data_pipeline", "params", "indexing", "chunk_size"], values=[512, 1024]
             ),
-            SearchSpaceParameter(path=["inference", "retrieval", "top-k"], values=[5, 10]),
             SearchSpaceParameter(
-                path=["inference", "generation", "model"], values=["gpt-3.5-turbo"]
+                path=["data_pipeline", "params", "indexing", "chunk_overlap"], values=[0.25, 0.5]
+            ),
+            SearchSpaceParameter(
+                path=["data_pipeline", "params", "indexing", "vector_space", "embedding_model"],
+                values=["text-embedding-ada-002"],
+            ),
+            SearchSpaceParameter(
+                path=["inference_pipeline", "params", "retrieval", "top_k"], values=[5, 10]
+            ),
+            SearchSpaceParameter(
+                path=["inference_pipeline", "params", "generation", "generative_model"],
+                values=["gpt-3.5-turbo"],
             ),
         ]
     )
@@ -134,13 +143,17 @@ class TestTunerRun:
         # Verify CSV content
         df = pd.read_csv(hpo_results_file)
         assert len(df) == 8
-        assert "answer_correctness_mean" in df.columns
-        assert "faithfulness_mean" in df.columns
+        # Check for actual metric column names from the HuggingFace dataset
+        assert "Lexical-AC_mean" in df.columns
+        assert "Lexical-FF_mean" in df.columns
+        assert "LLMaaJ-AC_mean" in df.columns
+        assert "context_correctness_mean" in df.columns
 
         # Verify all parameter combinations are present
-        assert set(df["indexing.chunking.size"].unique()) == {512, 1024}
-        assert set(df["indexing.chunking.overlap"].unique()) == {50, 100}
-        assert set(df["inference.retrieval.top-k"].unique()) == {5, 10}
+        assert set(df["data_pipeline.params.indexing.chunk_size"].unique()) == {512, 1024}
+        # Check that we have 2 unique overlap ratios (0.25 and 0.5)
+        assert set(df["data_pipeline.params.indexing.chunk_overlap"].unique()) == {0.25, 0.5}
+        assert set(df["inference_pipeline.params.retrieval.top_k"].unique()) == {5, 10}
 
         # Verify optimization_metric_id was added to algorithm params
         assert "optimization_metric_id" in df.columns
@@ -152,12 +165,13 @@ class TestTunerRun:
             assert pattern_file.exists()
 
         # Verify metrics are present and valid
-        assert all(df["answer_correctness_mean"] > 0)
-        assert all(df["faithfulness_mean"] > 0)
+        assert all(df["Lexical-AC_mean"] > 0)
+        assert all(df["Lexical-FF_mean"] > 0)
+        assert all(df["context_correctness_mean"] > 0)
 
-        # Verify best config can be retrieved
+        # Verify best config can be retrieved using one of the actual metric IDs
         best_configs = result.get_best_configs(
-            metric_id="answer_correctness", num_best_configs_to_consider=1
+            metric_id="context_correctness", num_best_configs_to_consider=1
         )
         assert len(best_configs) == 1
         assert best_configs[0] is not None
@@ -165,8 +179,8 @@ class TestTunerRun:
         # Verify the best config has the highest chunk_size and top_k
         # (based on our synthetic data formula)
         best_params = best_configs[0].get_path_to_values_dict()
-        assert best_params["indexing.chunking.size"] == 1024
-        assert best_params["inference.retrieval.top-k"] == 10
+        assert best_params["data_pipeline.params.indexing.chunk_size"] == 1024
+        assert best_params["inference_pipeline.params.retrieval.top_k"] == 10
 
     def test_run_with_optimization_metric_id(
         self,
