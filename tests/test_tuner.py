@@ -22,7 +22,6 @@ from rag_hpo_bench.hpo.tuner import Tuner
 def sample_hf_dataframe():
     """Create a sample DataFrame mimicking the HuggingFace dataset structure."""
     # Create a comprehensive dataset with all combinations of the search space
-    # Note: Chunk Overlap is stored as a ratio in the actual HuggingFace dataset
     data = []
     for chunk_size in [512, 1024]:
         for chunk_overlap_ratio in [0.25, 0.5]:
