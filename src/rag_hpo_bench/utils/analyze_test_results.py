@@ -1,0 +1,556 @@
+import logging
+from pathlib import Path
+from typing import Literal, cast
+
+import pandas as pd
+from matplotlib import pyplot as plt
+from matplotlib.axes import Axes
+from pydantic import BaseModel
+
+from rag_hpo_bench.data_models.data_sampling_params import DataSamplingParams
+from rag_hpo_bench.data_models.dataset_id import DatasetID
+from rag_hpo_bench.data_models.dataset_names import DatasetName
+from rag_hpo_bench.hpo.hpo_algorithm import HpoAlgorithmType
+from rag_hpo_bench.hpo.hpo_experiment import HpoExperiment
+from rag_hpo_bench.hpo.hpo_results import HpoResults
+from rag_hpo_bench.hpo.test_results import TestResults
+from rag_hpo_bench.utils.logging_utils import init_logger
+
+logger = logging.getLogger(__name__)
+
+SamplingSetupType = Literal["sample", "full"]
+SplitType = Literal["Dev", "Test"]
+
+
+class MetricDefinition(BaseModel):
+    """Definition of a metric with its various name representations."""
+
+    name: str  # Internal name used in code
+    display_name: str  # Human-readable name for display
+    short_name: str  # Abbreviated name for plots/tables
+
+
+# Define the three metrics used in analysis
+LLMAAJ_AC = MetricDefinition(name="LLMaaJ-AC", display_name="Answer Correctness", short_name="AC")
+
+LEXICAL_AC = MetricDefinition(
+    name="Lexical-AC", display_name="Lexical Answer Correctness", short_name="LAC"
+)
+
+LEXICAL_FF = MetricDefinition(
+    name="Lexical-FF", display_name="Lexical Faithfulness", short_name="LF"
+)
+
+
+def get_sampling_params(sampling_setup: str, dataset_name: DatasetName) -> DataSamplingParams:
+    """Get sampling parameters based on setup type and dataset.
+
+    Args:
+        sampling_setup: Type of sampling setup ("sample", "full", or specific like "max_150_questions")
+        dataset_name: Dataset name enum
+
+    Returns:
+        DataSamplingParams object with appropriate settings
+    """
+    if sampling_setup == "full":
+        return DataSamplingParams()
+    elif sampling_setup == "sample":
+        # Default sample configuration
+        return DataSamplingParams(question_limit=50)
+    elif sampling_setup == "max_150_questions":
+        return DataSamplingParams(question_limit=150)
+    else:
+        # Try to parse as a custom configuration
+        return DataSamplingParams()
+
+
+def get_algorithm_setups() -> list[HpoAlgorithmType]:
+    """Get list of algorithm setups to analyze.
+
+    Returns:
+        List of HpoAlgorithmType values starting with random and greedy_m
+    """
+    return [
+        HpoAlgorithmType.RANDOM,
+        HpoAlgorithmType.GREEDY_M,
+    ]
+
+
+def get_greedy_algorithm_setups(
+    metric_short_name: str, with_sampling: bool
+) -> list[tuple[str, str]]:
+    """Get list of greedy algorithm setups.
+
+    Args:
+        metric_short_name: Short name of the metric
+        with_sampling: Whether sampling is enabled
+
+    Returns:
+        List of tuples (display_name, algorithm_id)
+    """
+    # Return empty list for now - greedy algorithms would be added here
+    return []
+
+
+def get_grid_results(
+    sampling_setup: str,
+    dataset_name: DatasetName,
+    split: SplitType,
+    metric_short_name: str,
+    base_results_path: Path,
+) -> HpoResults:
+    """Load grid search results for a specific configuration.
+
+    Args:
+        sampling_setup: Type of sampling setup
+        dataset_name: Dataset name enum
+        split: Data split (Dev or Test)
+        metric_short_name: Short name of the metric
+        base_results_path: Base path for experiment results
+
+    Returns:
+        HpoResults object containing the grid search results
+    """
+    sampling_params = get_sampling_params(sampling_setup=sampling_setup, dataset_name=dataset_name)
+
+    # Create DatasetID for the tune dataset
+    tune_dataset = DatasetID(
+        dataset_name=dataset_name,
+        split=split,
+        sampling_params=sampling_params,
+    )
+
+    grid_results_path = HpoExperiment.get_output_path(
+        base_output_path=base_results_path,
+        algorithm_type=HpoAlgorithmType.GRID,
+        optimization_metric_id=metric_short_name,
+        tune_dataset=tune_dataset,
+        test_dataset=None,
+    )
+    logger.info(f"Loading grid results from '{grid_results_path}'..")
+    grid_results_path = grid_results_path / "tuning"
+    return HpoResults.from_csv(grid_results_path)
+
+
+def read_all_seeds_test_results(results_path):
+    print(f"Reading all seeds test results from '{results_path}'..")
+    seed_result_dirs = [d.name for d in results_path.iterdir() if d.is_dir()]
+    result = []
+    for seed_result_dir in seed_result_dirs:
+        if seed_result_dir.startswith("seed_"):
+            test_results_path = results_path / seed_result_dir / "test"
+            seed_test_results = TestResults.from_csv(
+                test_results_path, file_name="test_results.csv"
+            )
+            seed_test_results._results_summary["iteration_index"] = range(
+                1, len(seed_test_results._results_summary) + 1
+            )
+            result.append(seed_test_results)
+    if not result:
+        raise RuntimeError(f"No seed results found in '{results_path}'.")
+    result = TestResults.concat(result)
+    return result
+
+
+def analyze_test_results(
+    sampling_setups: list[SamplingSetupType],
+    analyzed_metric: MetricDefinition,
+    dataset_names: list[DatasetName],
+    base_results_path: Path,
+    analysis_path: Path,
+    max_evals: int,
+):
+    all_metric_results = []
+    metric_short_name = analyzed_metric.short_name
+    metric_internal_name = analyzed_metric.name
+
+    algorithm_setups = get_algorithm_setups()
+    for dataset_name in dataset_names:
+        dataset_results = []
+        for sampling_setup in sampling_setups:
+            data_sampling_params = get_sampling_params(sampling_setup, dataset_name)
+
+            # Create DatasetID for the tune dataset
+            tune_dataset = DatasetID(
+                dataset_name=dataset_name,
+                split="Dev",
+                sampling_params=data_sampling_params,
+            )
+
+            for algorithm_type in algorithm_setups:
+                algorithm_display_name = algorithm_type.value
+                optimization_metric_id = metric_short_name
+
+                tune_results_path = HpoExperiment.get_output_path(
+                    base_output_path=base_results_path,
+                    algorithm_type=algorithm_type,
+                    optimization_metric_id=optimization_metric_id,
+                    tune_dataset=tune_dataset,
+                    test_dataset=None,
+                )
+                # Read the test file from the path
+                test_results = TestResults.from_csv(
+                    tune_results_path, "test_multi_seed_results.csv"
+                )
+                logger.info(f"Read results from '{tune_results_path}'.")
+                logger.info(
+                    f"Number of results for {dataset_name} and {algorithm_display_name} is {len(test_results._results_summary[metric_internal_name])}'."
+                )
+                metric_result = {
+                    metric_short_name: test_results._results_summary[metric_internal_name].mean(),
+                    f"{metric_short_name}_std": test_results._results_summary[
+                        metric_internal_name
+                    ].std(),
+                    "algorithm": algorithm_display_name,
+                    "sampling_setup": sampling_setup,
+                    "dataset": dataset_name,
+                }
+                logger.info(f"metric_result: '{metric_result}'.")
+                best_configs_params = test_results._results_summary.apply(
+                    lambda row: f"({row['chunking_size']}, {row['chunking_overlap']}, "
+                    f"{row['embedding_model']}, {row['number_of_retrieved_chunks']}, "
+                    f"{row['inference_model_id']})",
+                    axis=1,
+                )
+                best_config_counts = pd.Series(best_configs_params).value_counts()
+                for config_i, (config_params, config_count) in enumerate(
+                    best_config_counts.items(), start=1
+                ):
+                    metric_result[f"best_config_{config_i}"] = config_params
+                    metric_result[f"best_config_{config_i}_count"] = config_count
+                dataset_results.append(metric_result)
+
+        dataset_results = pd.DataFrame(dataset_results)
+        dataset_results["max_evals"] = max_evals
+        dataset_test_analysis_path = (
+            analysis_path / f"test_results_{metric_short_name}_{dataset_name}.csv"
+        )
+        dataset_results.to_csv(dataset_test_analysis_path)
+        logger.info(
+            f"Results for '{metric_short_name}' and '{dataset_name}' written to '{dataset_test_analysis_path}'."
+        )
+        all_metric_results.append(dataset_results)
+
+        algorithm_order = [algorithm_setup[0] for algorithm_setup in algorithm_setups]
+        write_metric_results_for_paper(
+            dataset_results, metric_short_name, algorithm_order, analysis_path
+        )
+
+    all_metric_results = pd.concat(all_metric_results)
+    return all_metric_results
+
+
+def write_metric_results_for_paper(
+    metric_results: pd.DataFrame,
+    metric_short_name: str,
+    algorithm_order: list[str],
+    analysis_path: Path,
+):
+    paper_metric_results = metric_results[
+        [metric_short_name, "dataset", "algorithm", "sampling_setup"]
+    ].copy()
+    paper_metric_results["dataset"] = paper_metric_results["dataset"].apply(lambda v: v.value)
+
+    paper_metric_results["algorithm"] = pd.Categorical(
+        paper_metric_results["algorithm"], categories=algorithm_order, ordered=True
+    )
+    sampling_setup_order = ["sample", "full"]
+    paper_metric_results["sampling_setup"] = pd.Categorical(
+        paper_metric_results["sampling_setup"], categories=sampling_setup_order, ordered=True
+    )
+    paper_metric_results = paper_metric_results.sort_values(
+        by=["dataset", "algorithm", "sampling_setup"], ascending=[True, True, True]
+    )
+
+    paper_metric_results = paper_metric_results.set_index(
+        ["dataset", "algorithm", "sampling_setup"]
+    )
+    paper_metric_results = paper_metric_results.unstack(["algorithm", "sampling_setup"])
+    paper_metric_results = paper_metric_results.applymap(lambda v: f"{v * 100:.1f}")
+
+    paper_metrics_output_path = analysis_path / f"test_results_for_paper_{metric_short_name}.csv"
+    paper_metric_results.to_csv(paper_metrics_output_path)
+
+    paper_metrics_latex = paper_metric_results.to_latex()
+    print(f"------------\n{paper_metrics_latex}----------------")
+    paper_metrics_latex_path = analysis_path / f"test_results_for_paper_{metric_short_name}.txt"
+    with open(paper_metrics_latex_path, "w") as paper_metrics_latex_file:
+        paper_metrics_latex_file.write(paper_metrics_latex)
+
+
+def plot_performance_per_iteration(
+    test_results: pd.DataFrame,
+    analyzed_metric: MetricDefinition,
+    analysis_path: Path,
+    base_results_path: Path,
+):
+    metric_short_name = analyzed_metric.short_name
+    metric_display_name = analyzed_metric.display_name
+    metric_internal_name = analyzed_metric.name
+    metric_analysis_path = analysis_path / metric_short_name
+    metric_analysis_path.mkdir(parents=True, exist_ok=True)
+
+    performance_per_iteration = test_results[
+        [metric_short_name, "dataset", "algorithm", "sampling_setup", "max_evals"]
+    ].copy()
+
+    for single_dataset_fig in False, True:
+        ax_index = 0
+        axes = []
+        fig = None
+        results_per_dataset = performance_per_iteration.groupby("dataset")
+        num_datasets = len(results_per_dataset)
+        if not single_dataset_fig:
+            # figsize=(10, 6) is good for 3 columns and 2 rows
+            # num_datasets * 2.8
+            height_in_inch = 14 if not with_sampling else 9  # for 5 datasets
+            fig, axes = plt.subplots(num_datasets, 1, figsize=(6, height_in_inch))
+            if num_datasets > 1:
+                axes = axes.flat
+            # for ax in axes:
+            #    ax.set_aspect(20)
+        for dataset_index, (dataset, dataset_results) in enumerate(results_per_dataset, start=1):
+            ax: Axes
+            if single_dataset_fig:
+                fig = plt.figure(figsize=(10, 6))
+                ax = fig.add_subplot(111)
+            else:
+                if num_datasets > 1:
+                    ax = axes[ax_index]
+                else:
+                    ax = cast(Axes, axes)
+                ax_index += 1
+            for algorithm_label, algorithm_results in dataset_results.groupby("algorithm"):
+                by_sampling_setup = algorithm_results.groupby("sampling_setup")
+                for sampling_setup, sampling_setup_results in by_sampling_setup:
+                    by_iteration_results = sampling_setup_results[["max_evals", metric_short_name]]
+                    by_iteration_results = by_iteration_results.set_index("max_evals")
+
+                    label, color, linestyle, linewidth = get_plot_props(
+                        algorithm_label, sampling_setup if with_sampling else None
+                    )
+                    ax.plot(
+                        by_iteration_results.index,
+                        by_iteration_results[metric_short_name],
+                        label=label,
+                        linestyle=linestyle,
+                        linewidth=linewidth,
+                        color=color,
+                    )
+
+            title = str(dataset)
+            ax.set_title(title)
+            ax.set_xlabel("# Iterations")
+            ax.set_ylabel(metric_display_name)
+            iterations_range = range(1, 11)
+            ax.set_xticks(iterations_range)
+            ax.set_xlim(by_iteration_results.index[0], by_iteration_results.index[-1])
+
+            # Plot the best possible test results from the test grid search results
+            plot_test_grid = True
+            if plot_test_grid:
+                test_grid_results = get_grid_results(
+                    sampling_setup="max_150_questions",
+                    dataset_name=dataset,
+                    split="Test",
+                    metric_short_name=metric_short_name,
+                    base_results_path=base_results_path,
+                )
+
+                best_test_result = test_grid_results.tune_result[metric_internal_name].max()
+                ax.axhline(y=best_test_result, color="black", linewidth=1.5, linestyle="--")
+
+            # lowest_test_result = test_grid_results.tune_result[metric_internal_name].min()
+            # ax.axhline(y=lowest_test_result, color="black", linewidth=1, linestyle="--")
+
+            greedy_algorithms = get_greedy_algorithm_setups(metric_short_name, with_sampling)
+            sampling_setups = ["full"]
+            if with_sampling:
+                sampling_setups.append("sample")
+            for algorithm_label, algorithm_id in greedy_algorithms:
+                for sampling_setup in sampling_setups:
+                    # Parse algorithm_id to extract algorithm type and optimization metric
+                    algorithm_parts = algorithm_id.split("_", 1)
+                    algorithm_type_str = algorithm_parts[0]
+                    remaining = algorithm_parts[1] if len(algorithm_parts) > 1 else ""
+                    if remaining.startswith("metric-"):
+                        # Extract just the metric part after "metric-"
+                        metric_part = remaining.split("_")[0]
+                        optimization_metric_id = metric_part.replace("metric-", "")
+                    else:
+                        optimization_metric_id = metric_short_name
+
+                    algorithm_type = HpoAlgorithmType(algorithm_type_str)
+
+                    # Create DatasetID for the tune dataset
+                    sampling_params = get_sampling_params(
+                        sampling_setup=sampling_setup, dataset_name=dataset
+                    )
+                    tune_dataset = DatasetID(
+                        dataset_name=dataset,
+                        split="Dev",
+                        sampling_params=sampling_params,
+                    )
+
+                    greedy_algorithm_results_path = HpoExperiment.get_output_path(
+                        base_output_path=base_results_path,
+                        algorithm_type=algorithm_type,
+                        optimization_metric_id=optimization_metric_id,
+                        tune_dataset=tune_dataset,
+                        test_dataset=None,
+                    )
+
+                    greedy_results = read_all_seeds_test_results(
+                        greedy_algorithm_results_path
+                    )._results_summary
+                    greedy_mean_metric_performance = greedy_results.groupby("iteration_index")[
+                        metric_internal_name
+                    ].mean()
+
+                    label, color, linestyle, linewidth = get_plot_props(
+                        algorithm_label, sampling_setup if with_sampling else None
+                    )
+                    ax.plot(
+                        iterations_range,
+                        greedy_mean_metric_performance[:10],
+                        label=label,
+                        color=color,
+                        linestyle=linestyle,
+                        linewidth=linewidth,
+                    )
+
+            ymin, ymax = ax.get_ylim()
+            ax.vlines(
+                x=iterations_range,
+                ymin=ymin,
+                ymax=ymax,
+                color="gray",
+                linestyle="--",
+                linewidth=1,
+                alpha=0.3,
+            )
+
+            if single_dataset_fig:
+                ax.legend(loc="lower right", fontsize=6, ncol=2)
+                test_results_path = metric_analysis_path / f"test_results_{dataset.value}.png"
+                plt.savefig(test_results_path, dpi=300)
+                logger.info(f"test results per iteration written to '{test_results_path}'.")
+                test_results_path = metric_analysis_path / f"test_results_{dataset.value}.pdf"
+                plt.savefig(test_results_path, dpi=300)
+            last_dataset = dataset_index == num_datasets
+            if not single_dataset_fig and last_dataset:
+                # -0.35 for 5 datasets
+                ncol = 3 if with_sampling else 2
+                bbox_to_anchor_height = -0.35 if not with_sampling else -0.15
+                ax.legend(
+                    loc="upper center", bbox_to_anchor=(0.5, bbox_to_anchor_height), ncol=ncol
+                )  # fontsize=6,
+
+        if not single_dataset_fig:
+            if not with_sampling:
+                fig.subplots_adjust(hspace=0.6)  # for 5 datasets
+            else:
+                fig.subplots_adjust(hspace=0.36, bottom=0.16, top=0.96)
+            # plt.show()
+            # fig.subplots_adjust(hspace=0.4)  # for 2 datasets
+            # ax = axes[-1]
+            # ax.axis("off")
+            sampling_setup_name = "sample" if with_sampling else "full"
+            test_results_path = (
+                analysis_path
+                / ".."
+                / f"test-results_data-{sampling_setup_name}_{metric_short_name}.png"
+            )
+            plt.savefig(test_results_path, dpi=600)
+            logger.info(f"test results per iteration written to '{test_results_path}'.")
+            test_results_path = (
+                analysis_path
+                / ".."
+                / f"test-results_data-{sampling_setup_name}_{metric_short_name}.pdf"
+            )
+            plt.savefig(test_results_path, dpi=600)
+
+
+def get_plot_props(algorithm_label, sampling_setup):
+    label = algorithm_label
+    if sampling_setup:
+        sampling_setup = "Full" if sampling_setup == "full" else "Sample"
+        label += f"/{sampling_setup}"
+
+    linestyle = "-"
+    linewidth = 2
+    color = "Yellow"
+    if "grid" in label.lower():
+        # linestyle = "--"
+        linewidth = 1.5
+        color = "red"
+    if "TPE" in label:
+        color = "green"
+    if "Random" in label:
+        color = "blue"
+    if "Greedy-M" in label:
+        color = "purple"
+    if "Greedy-R" in label:
+        color = "pink"
+    if "Greedy-R-CC" in label:
+        color = "orange"
+    if "sample" in label.lower():
+        linestyle = ":"
+    return label, color, linestyle, linewidth
+
+
+def analyze_test_results_main(
+    with_sampling: bool, analyzed_metric: MetricDefinition, base_results_path: Path
+):
+    if not with_sampling:
+        dataset_names = [
+            DatasetName.WatsonxQA,
+            DatasetName.MiniWiki,
+            DatasetName.AIArxiv,
+            DatasetName.ClapNQ,
+            DatasetName.BioASQ,
+        ]
+    else:
+        dataset_names = [
+            DatasetName.ClapNQ,
+            DatasetName.BioASQ,
+        ]
+
+    sampling_setups = ["full"]
+    if with_sampling:
+        sampling_setups.append("sample")
+    all_test_results = []
+    analysis_path = (
+        base_results_path / f"analysis/test_results/{'sample' if with_sampling else 'full'}"
+    )
+    for max_evals in [1, 2, 3, 4, 5, 6, 7, 9, 10]:
+        max_evals_analysis_path = analysis_path / f"{max_evals}_iterations/"
+        max_evals_analysis_path.mkdir(parents=True, exist_ok=True)
+        test_results = analyze_test_results(
+            sampling_setups=sampling_setups,
+            analyzed_metric=analyzed_metric,
+            dataset_names=dataset_names,
+            base_results_path=base_results_path,
+            analysis_path=max_evals_analysis_path,
+            max_evals=max_evals,
+        )
+        all_test_results.append(test_results)
+    all_test_results = pd.concat(all_test_results)
+
+    plot_performance_per_iteration(
+        all_test_results, analyzed_metric, analysis_path, base_results_path
+    )
+
+
+if __name__ == "__main__":
+    init_logger()
+    base_results_path = Path(__file__).parent.parent.parent.parent / "experiments_output"
+
+    analyzed_metrics = [
+        LLMAAJ_AC,
+        LEXICAL_AC,
+        LEXICAL_FF,
+    ]
+    for with_sampling in [False]:
+        for analyzed_metric in analyzed_metrics:
+            analyze_test_results_main(with_sampling, analyzed_metric, base_results_path)

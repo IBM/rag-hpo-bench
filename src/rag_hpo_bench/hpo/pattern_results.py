@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 import pandas as pd
 
@@ -93,7 +93,7 @@ class MultiplePatternResults:
         return file_path
 
     @classmethod
-    def from_csv(cls, directory: Path, file_name=None) -> "MultiplePatternResults":
+    def from_csv(cls, directory: Path, file_name=None) -> "Self":
         file_path = cls.file_path(directory, file_name)
         return cls(
             _results_summary=pd.read_csv(file_path),

@@ -27,21 +27,59 @@ class HpoExperiment:
     skip_existing_test_results: bool = False
     clean_output_dir: bool = False
 
-    def run(self):
-        algorithm_type = HpoAlgorithmType(self.algorithm_params["algorithm_type"])
-        self.output_path = self.output_path / algorithm_type.value
-        self.output_path = self.output_path / self.tune_dataset.as_string()
-        if self.test_dataset:
-            self.output_path = self.output_path / self.test_dataset.as_string()
-        # We check the content of output_path:
-        if os.path.exists(self.output_path) and len(os.listdir(self.output_path)) > 0:
-            if self.clean_output_dir:
-                shutil.rmtree(self.output_path)
+    @staticmethod
+    def get_output_path(
+        base_output_path: Path,
+        algorithm_type: HpoAlgorithmType,
+        optimization_metric_id: str,
+        tune_dataset: DatasetID,
+        test_dataset: DatasetID | None,
+        clean_output_dir: bool = False,
+    ) -> Path:
+        """
+        Create the output path for HPO experiment results.
+
+        The path structure is: base_output_path / algorithm_type / optimization_metric_id / tune_dataset / [test_dataset]
+
+        Args:
+            base_output_path: Base directory for output
+            algorithm_type: The HPO algorithm type
+            optimization_metric_id: The metric being optimized
+            tune_dataset: Dataset used for tuning
+            test_dataset: Optional dataset used for testing
+            clean_output_dir: If True, remove existing directory contents
+
+        Returns:
+            Path: The created output path
+        """
+        output_path = base_output_path / algorithm_type.value
+        output_path = output_path / optimization_metric_id
+        output_path = output_path / tune_dataset.as_string()
+        if test_dataset:
+            output_path = output_path / test_dataset.as_string()
+
+        # Check the content of output_path
+        if os.path.exists(output_path) and len(os.listdir(output_path)) > 0:
+            if clean_output_dir:
+                shutil.rmtree(output_path)
             else:
                 logger.warning(
-                    f"Output directory {self.output_path} exists and contains results before the run!"
+                    f"Output directory {output_path} exists and contains results before the run!"
                 )
-        self.output_path.mkdir(parents=True, exist_ok=True)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        return output_path
+
+    def run(self):
+        algorithm_type = HpoAlgorithmType(self.algorithm_params["algorithm_type"])
+        self.output_path = self.get_output_path(
+            base_output_path=self.output_path,
+            algorithm_type=algorithm_type,
+            optimization_metric_id=self.optimization_metric_id,
+            tune_dataset=self.tune_dataset,
+            test_dataset=self.test_dataset,
+            clean_output_dir=self.clean_output_dir,
+        )
 
         # before pop() make a copy to avoid affecting objects that also
         # have access to this dict
