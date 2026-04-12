@@ -4,10 +4,11 @@ import hashlib
 import itertools
 import json
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -16,9 +17,10 @@ logger = logging.getLogger(__name__)
 
 def get_hash_dict(d: dict) -> str:
     """Generate a hash from a dictionary by serializing and hashing it."""
+
     def fallback_serializer(obj):
         return str(obj)
-    
+
     sorted_dict_items = sorted(d.items())
     s = json.dumps(sorted_dict_items, default=fallback_serializer)
     hash_object = hashlib.md5()
@@ -26,7 +28,7 @@ def get_hash_dict(d: dict) -> str:
     return hash_object.hexdigest()
 
 
-class RagParameterName(str, Enum):
+class RagParameterName(StrEnum):
     VECTOR_SPACE = "vector_space"
     VENDOR = "vendor"
     CHUNK_SIZE = "chunk_size"
@@ -72,7 +74,7 @@ class RagParameter(BaseParameter):
         required_path = ["generation"]  -> False
         """
         match = True
-        for required_path_item, path_item in zip(required_path, self.path):
+        for required_path_item, path_item in zip(required_path, self.path, strict=False):
             if required_path_item != path_item:
                 match = False
                 break
@@ -156,9 +158,7 @@ class PatternParameters:
         if not matching_params:
             return {}
 
-        nested_dicts = [
-            mathing_param.as_nested_dict() for mathing_param in matching_params
-        ]
+        nested_dicts = [mathing_param.as_nested_dict() for mathing_param in matching_params]
 
         result = nested_dicts[0] if nested_dicts else {}
         for nested_dict in nested_dicts[1:]:
@@ -200,9 +200,7 @@ class PatternParameters:
             new_path = current_path.copy()
             new_path.append(path_item)
             if isinstance(value, dict):
-                rag_parameters.extend(
-                    PatternParameters._from_dict(value, current_path=new_path)
-                )
+                rag_parameters.extend(PatternParameters._from_dict(value, current_path=new_path))
             else:
                 rag_parameters.append(RagParameter(path=new_path, value=value))
         return rag_parameters
@@ -214,9 +212,7 @@ class SearchSpace(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     @staticmethod
-    def create_search_space_params(
-        d: dict, prefix: list[str] = None
-    ) -> list[SearchSpaceParameter]:
+    def create_search_space_params(d: dict, prefix: list[str] = None) -> list[SearchSpaceParameter]:
         if prefix is None:
             prefix = []
 

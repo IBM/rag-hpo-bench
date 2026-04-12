@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class TuneAndTestDataset(BaseModel):
     """
     Represents a pair of tune and test datasets for HPO experiments.
-    
+
     Attributes:
         tune: Dataset to use for tuning/training
         test: Optional dataset to use for testing (can be None)
@@ -40,7 +40,7 @@ class TuneAndTestDataset(BaseModel):
 class AlgorithmConfig(BaseModel):
     """
     Configuration for a single HPO algorithm.
-    
+
     Attributes:
         algorithm_type: Type of algorithm (e.g., "grid", "random", "bayesian")
         num_seeds: Optional number of random seeds to run
@@ -55,7 +55,7 @@ class AlgorithmConfig(BaseModel):
     def to_dict(self) -> dict[str, Any]:
         """
         Convert to dictionary format expected by HpoExperiment.
-        
+
         Returns:
             Dictionary with algorithm configuration
         """
@@ -80,10 +80,10 @@ class ExperimentsRunner:
     - Multiple algorithm configurations
     - Multiple optimization metrics
     - A single search space (shared across all experiments)
-    
+
     The runner creates and executes all combinations of the provided parameters,
     allowing for comprehensive HPO benchmarking across different configurations.
-    
+
     Attributes:
         search_space: Single search space to use for all experiments
         dataset_pairs: List of tune/test dataset pairs
@@ -117,13 +117,11 @@ class ExperimentsRunner:
         - dataset pairs
         - algorithm configs
         - optimization metrics
-        
+
         Each combination creates a separate HPO experiment that will be run independently.
         """
         total_experiments = (
-            len(self.dataset_pairs)
-            * len(self.algorithm_configs)
-            * len(self.optimization_metrics)
+            len(self.dataset_pairs) * len(self.algorithm_configs) * len(self.optimization_metrics)
         )
 
         logger.info(
@@ -138,7 +136,7 @@ class ExperimentsRunner:
             for algorithm_config in self.algorithm_configs:
                 for optimization_metric in self.optimization_metrics:
                     experiment_count += 1
-                    
+
                     # Create algorithm params dict
                     algorithm_params = algorithm_config.to_dict()
 
@@ -167,7 +165,7 @@ class ExperimentsRunner:
     def run(self) -> list[Any]:
         """
         Run all HPO experiments sequentially.
-        
+
         Each experiment is run independently, and failures in one experiment
         do not prevent subsequent experiments from running.
 
@@ -177,11 +175,11 @@ class ExperimentsRunner:
         # Determine how many experiments to run
         experiments_to_run = self.hpo_experiments
         if self.max_experiments is not None and self.max_experiments < len(self.hpo_experiments):
-            experiments_to_run = self.hpo_experiments[:self.max_experiments]
+            experiments_to_run = self.hpo_experiments[: self.max_experiments]
             logger.warning(
                 f"Limiting execution to {self.max_experiments} out of {len(self.hpo_experiments)} total experiments"
             )
-        
+
         logger.info(f"Starting execution of {len(experiments_to_run)} HPO experiments")
 
         all_results = []
@@ -203,9 +201,7 @@ class ExperimentsRunner:
                 result = hpo_experiment.run()
                 all_results.append(result)
                 successful_count += 1
-                logger.info(
-                    f"✓ Experiment {idx}/{len(experiments_to_run)} completed successfully"
-                )
+                logger.info(f"✓ Experiment {idx}/{len(experiments_to_run)} completed successfully")
             except Exception as e:
                 logger.error(
                     f"✗ Experiment {idx}/{len(experiments_to_run)} failed with error: {e}",

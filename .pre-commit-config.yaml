@@ -1,0 +1,40 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+# .pre-commit-config.yaml
+
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+
+-   repo: https://github.com/PyCQA/isort
+    rev: 6.0.1  # Latest stable version
+    hooks:
+    -   id: isort
+        args: ["--profile", "black"]
+
+-   repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+    -   id: black
+        language_version: python3.13
+
+# Ruff linting with two-stage approach:
+# 1. Auto-fix safe issues (imports, unused vars, etc.)
+# 2. Check for remaining issues that need manual fixes (matches CI behavior)
+# This ensures pre-commit catches the same errors as GitHub Actions CI,
+# while still providing auto-fix convenience for safe transformations.
+# Note: Unsafe fixes (like UP042: str,Enum -> StrEnum) require manual intervention
+# or adding the rule to pyproject.toml ignore list.
+-   repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.11.2  # Latest stable version
+    hooks:
+    -   id: ruff
+        name: ruff-fix
+        args: ["--fix", "--exit-non-zero-on-fix"]  # Auto-fix safe issues first
+    -   id: ruff
+        name: ruff-check
+        args: []  # Then check for remaining issues (matches CI)

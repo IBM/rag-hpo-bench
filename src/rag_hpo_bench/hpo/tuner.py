@@ -72,7 +72,7 @@ class Tuner:
         # Add optimization_metric_id to algorithm_params for HPO algorithm
         self.algorithm_params = deepcopy(self.algorithm_params)
         self.algorithm_params["optimization_metric_id"] = self.optimization_metric_id
-        
+
         # Ensure output_path is a Path and create directory
         self.output_path = Path(self.output_path)
         self.output_path.mkdir(parents=True, exist_ok=True)
@@ -91,9 +91,7 @@ class Tuner:
             return self.rag_runner.run(self.tune_dataset, pattern_parameters)
 
         algorithm_params = deepcopy(self.algorithm_params)
-        hpo_algorithm = _new_hpo_algorithm(
-            self.search_space, objective_function, algorithm_params
-        )
+        hpo_algorithm = _new_hpo_algorithm(self.search_space, objective_function, algorithm_params)
         hpo_results = hpo_algorithm.search()
         hpo_results.add_to_summary(self.algorithm_params)
         hpo_results.to_csv(

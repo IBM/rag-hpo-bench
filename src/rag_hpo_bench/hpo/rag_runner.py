@@ -1,6 +1,7 @@
 """
 Runner for executing RAG patterns by loading cached results from HuggingFace.
 """
+
 import logging
 from typing import Any
 
@@ -17,10 +18,10 @@ logger = logging.getLogger(__name__)
 class RagRunner:
     """
     Runner for executing RAG patterns by loading cached results from HuggingFace.
-    
+
     This class reads from the RAG-HPO-bench HuggingFace dataset to retrieve cached
     evaluation results instead of running the actual RAG pipeline.
-    
+
     Dataset: https://huggingface.co/datasets/ibm-research/rag-hpo-bench
     """
 
@@ -29,23 +30,23 @@ class RagRunner:
     ) -> PatternResults | None:
         """
         Run RAG pattern by loading cached results from HuggingFace dataset.
-        
+
         Args:
             dataset_id: Dataset identifier
             pattern_parameters: RAG pattern parameters
-            
+
         Returns:
             PatternResults with cached evaluation metrics, or None if no match found
-            
+
         Raises:
             Exception: If loading from HuggingFace fails or no match is found
         """
         # Load the summary from HuggingFace (cached after first call)
         df = load_rag_configurations_summary()
-        
+
         # Extract parameters from pattern_parameters
         params_dict = pattern_parameters.get_path_to_values_dict()
-        
+
         # Map parameter paths to column names in the summary file
         # Column names in HuggingFace dataset use title case with spaces
         # These paths match the structure from search_space_factory.py
@@ -56,15 +57,17 @@ class RagRunner:
             "inference_pipeline.params.retrieval.top_k": "Top-K",
             "inference_pipeline.params.generation.generative_model": "Generative Model",
         }
-        
+
         # Build filter conditions
         filters = {}
         for param_path, col_name in param_mapping.items():
             if param_path in params_dict:
                 filters[col_name] = params_dict[param_path]
-        
+
         # Add dataset_id filter - need to split into Dataset and Split columns
-        dataset_id_str = dataset_id.as_string() if hasattr(dataset_id, 'as_string') else str(dataset_id)
+        dataset_id_str = (
+            dataset_id.as_string() if hasattr(dataset_id, "as_string") else str(dataset_id)
+        )
         # Parse dataset_id format: "name-<dataset>_split-<split>"
         if "_split-" in dataset_id_str:
             parts = dataset_id_str.split("_split-")
@@ -73,12 +76,14 @@ class RagRunner:
             filters["Dataset"] = dataset_name
             filters["Split"] = split_name
         else:
-            logger.warning(f"Unexpected dataset_id format: {dataset_id_str}. Expected format: 'name-<dataset>_split-<split>'")
+            logger.warning(
+                f"Unexpected dataset_id format: {dataset_id_str}. Expected format: 'name-<dataset>_split-<split>'"
+            )
             filters["Dataset"] = dataset_id_str
-        
+
         # Filter the dataframe
         logger.debug(f"Filtering with: {filters}")
-        
+
         # Check for missing columns first and raise exception if any are missing
         missing_columns = [col_name for col_name in filters.keys() if col_name not in df.columns]
         if missing_columns:
@@ -87,20 +92,20 @@ class RagRunner:
                 f"Available columns: {df.columns.tolist()}. "
                 f"This indicates a mismatch between the filter parameters and the dataset schema."
             )
-        
+
         # Apply filters
         mask = pd.Series([True] * len(df))
         for col_name, value in filters.items():
             mask &= df[col_name] == value
-        
+
         matched_rows = df[mask]
-        
+
         if len(matched_rows) == 0:
             raise ValueError(
                 f"No matching configuration found in summary file for filters: {filters}. "
                 f"Please verify that the pattern parameters match an existing configuration in the dataset."
             )
-        
+
         if len(matched_rows) > 1:
             matched_configs_str = matched_rows.to_string()
             raise ValueError(
@@ -110,10 +115,10 @@ class RagRunner:
                 f"Filters used: {filters}\n\n"
                 f"Matching configurations:\n{matched_configs_str}"
             )
-        
+
         # Get the single matching row
         row = matched_rows.iloc[0]
-        
+
         # Extract metric values directly from the row
         # Use CSV column names directly as metric IDs
         metric_columns = [
@@ -122,37 +127,37 @@ class RagRunner:
             "LLMaaJ-AC",
             "context_correctness",
         ]
-        
+
         metric_stats = {}
         for col_name in metric_columns:
             if col_name in row.index and pd.notna(row[col_name]):
                 # Store just the mean value since we have a single result
                 metric_stats[col_name] = {"mean": float(row[col_name])}
-        
+
         # Create a minimal evaluated_benchmark DataFrame
         # Since we don't have per-question data, create a summary row
         evaluated_benchmark = self._create_evaluated_benchmark(row, metric_stats)
-        
+
         # Create and return PatternResults
         pattern_results = PatternResults.create(
             pattern_parameters=pattern_parameters,
             evaluated_benchmark=evaluated_benchmark,
             metric_stats=metric_stats,
         )
-        
+
         logger.debug(f"Successfully ran rag pettern with parameters {pattern_parameters}.")
         return pattern_results
-    
+
     def _create_evaluated_benchmark(
         self, row: pd.Series, metric_stats: dict[str, dict[str, float]]
     ) -> list[dict[str, Any]]:
         """
         Create a minimal evaluated benchmark list from the summary row.
-        
+
         Args:
             row: A row from the summary DataFrame
             metric_stats: Extracted metric statistics
-            
+
         Returns:
             List of dictionaries representing evaluated questions
         """
@@ -170,9 +175,9 @@ class RagRunner:
             "trajectory": [],
             "logtrace": {},
         }
-        
+
         # Add metric scores
         for metric_id, stats in metric_stats.items():
             benchmark_entry[metric_id] = stats["mean"]
-        
+
         return [benchmark_entry]
