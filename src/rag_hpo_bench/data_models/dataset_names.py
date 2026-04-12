@@ -1,8 +1,8 @@
-from enum import Enum, unique
+from enum import StrEnum, unique
 
 
 @unique
-class DatasetName(str, Enum):
+class DatasetName(StrEnum):
     """Dataset names used in RAG HPO benchmarking."""
 
     AIArxiv = "AIArxiv"

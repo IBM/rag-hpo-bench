@@ -3,7 +3,7 @@ import random
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -20,7 +20,7 @@ from rag_hpo_bench.hpo.search_space import (
 logger = logging.getLogger(__name__)
 
 
-class HpoAlgorithmType(str, Enum):
+class HpoAlgorithmType(StrEnum):
     RANDOM = "random"
     GRID = "grid"
     GREEDY_M = "greedy_m"
