@@ -155,9 +155,7 @@ def plot_score_histogram(
     for i, (dsid, s_norm) in enumerate(metric_by_dataset_id.items()):
         counts, _ = np.histogram(s_norm, bins=bins)
         print(f"{dsid}: {sum(counts)}")
-        perc = (
-            counts / counts.sum() * 100.0 if counts.sum() > 0 else counts.astype(float)
-        )
+        perc = counts / counts.sum() * 100.0 if counts.sum() > 0 else counts.astype(float)
         ax.bar(
             bin_centers + offsets[i],
             perc,
@@ -208,20 +206,16 @@ def create_published_config_files(
 ):
     destination_folders = set()
     for config_id, dataset, split, source_file_path in zip(
-        df["config_id"], df["Dataset"], df["Split"], df["file_path"]
+        df["config_id"], df["Dataset"], df["Split"], df["file_path"], strict=False
     ):
         destination_path = output_path / dataset / split / Path(source_file_path).name
         destination_folders.add(destination_path.parent)
         destination_path.parent.mkdir(exist_ok=True, parents=True)
         if with_json:
             shutil.copy(source_file_path, destination_path)
-        destination_csv_path = (
-            destination_path.parent / f"RagConfiguration{config_id}.csv"
-        )
+        destination_csv_path = destination_path.parent / f"RagConfiguration{config_id}.csv"
         if (not destination_csv_path.exists()) or overwrite_output:
-            pattern_results_to_csv(
-                json_path=source_file_path, csv_path=destination_csv_path
-            )
+            pattern_results_to_csv(json_path=source_file_path, csv_path=destination_csv_path)
 
     if zip_output:
         zip_folders(
@@ -231,9 +225,7 @@ def create_published_config_files(
         )
 
 
-def zip_folders(
-    destination_folders: set[Path], expected_file_count: int, zip_output_dir: Path
-):
+def zip_folders(destination_folders: set[Path], expected_file_count: int, zip_output_dir: Path):
     """
     For each folder in destination_folders:
       - check that it has exactly expected_file_count files
@@ -279,7 +271,7 @@ def pattern_results_to_csv(json_path, csv_path):
     """
 
     # Load JSON
-    with open(json_path, "r") as f:
+    with open(json_path) as f:
         data = json.load(f)
 
     eval_data = data["evaluation_data"]
@@ -329,9 +321,7 @@ def pattern_results_to_csv(json_path, csv_path):
 
 def create_published_results(df: DataFrame, output_path: Path):
     df = df.copy()
-    df[["Dataset", "Split"]] = (
-        df["dataset_id"].map(dataset_id_to_dataset_mapping).apply(pd.Series)
-    )
+    df[["Dataset", "Split"]] = df["dataset_id"].map(dataset_id_to_dataset_mapping).apply(pd.Series)
     print(f"# Results before dataset filtering: {len(df)}")
     df = df.dropna(subset=["Dataset"])
     print(f"# Results after dataset filtering: {len(df)}")
@@ -367,9 +357,7 @@ def create_published_results(df: DataFrame, output_path: Path):
     }
     df = df.rename(columns=col_map)
 
-    df = df.sort_values(
-        ["Dataset", "Split", "Configuration ID"], ascending=[True, True, True]
-    )
+    df = df.sort_values(["Dataset", "Split", "Configuration ID"], ascending=[True, True, True])
 
     df.to_csv(output_path, index=False)
 
@@ -403,9 +391,7 @@ def add_config_id(df: DataFrame) -> DataFrame:
 
 def main(allow_overwrite: bool):
     if not INPUT_FOLDER.is_dir():
-        raise SystemExit(
-            f"INPUT_FOLDER does not exist or is not a directory: {INPUT_FOLDER}"
-        )
+        raise SystemExit(f"INPUT_FOLDER does not exist or is not a directory: {INPUT_FOLDER}")
 
     rows = []
 
@@ -446,9 +432,7 @@ def main(allow_overwrite: bool):
             df.to_csv(out, index=False)
             print(f"✅ Saved output to: {out.resolve()}")
             published_results_file = out.with_name("rag_configurations_summary.csv")
-            print(
-                f"✅ Saving published results to: {published_results_file.resolve()}.."
-            )
+            print(f"✅ Saving published results to: {published_results_file.resolve()}..")
             create_published_results(df, published_results_file)
     else:
         print(f"Loading existing results from {OUTPUT_FILE}..")

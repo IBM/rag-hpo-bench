@@ -17,10 +17,10 @@ class DatasetID:
         if isinstance(self.dataset_name, str):
             try:
                 self.dataset_name = self._dataset_str_to_dataset(self.dataset_name)
-            except ValueError:
+            except ValueError as e:
                 raise ValueError(
                     f"Unexpected dataset name value '{self.dataset_name}' not found in catalog ({[item.value for item in DatasetName]})"
-                )
+                ) from e
 
     @staticmethod
     def _dataset_str_to_dataset(dataset_str: str) -> DatasetName:
@@ -31,9 +31,7 @@ class DatasetID:
         dataset_name_str = dataset_setup["id"]
         dataset_name = DatasetID._dataset_str_to_dataset(dataset_name_str)
 
-        data_sampling_params = DataSamplingParams(
-            **(dataset_setup.get("sampling") or {})
-        )
+        data_sampling_params = DataSamplingParams(**(dataset_setup.get("sampling") or {}))
 
         return DatasetID(
             dataset_name=dataset_name,

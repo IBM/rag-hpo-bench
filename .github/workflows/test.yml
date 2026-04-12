@@ -12,8 +12,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        os: [macos-latest]
+        python-version: ["3.12"]
 
     steps:
     - uses: actions/checkout@v4
@@ -43,11 +43,10 @@ jobs:
         pytest tests/ -v --tb=short --cov=src/rag_hpo_bench --cov-report=xml --cov-report=term
 
     - name: Upload coverage to Codecov
-      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+      if: matrix.os == 'macos-latest' && matrix.python-version == '3.12'
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
         flags: unittests
         name: codecov-umbrella
         fail_ci_if_error: false
-

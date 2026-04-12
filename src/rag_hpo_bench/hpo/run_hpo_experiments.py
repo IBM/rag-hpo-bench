@@ -8,10 +8,9 @@ datasets, algorithms, and optimization metrics.
 import argparse
 import logging
 from pathlib import Path
-from typing import Any
 
 from rag_hpo_bench.data_models import DatasetID, DatasetName
-from rag_hpo_bench.hpo import AlgorithmConfig, TuneAndTestDataset, ExperimentsRunner
+from rag_hpo_bench.hpo import AlgorithmConfig, ExperimentsRunner, TuneAndTestDataset
 from rag_hpo_bench.hpo.search_space import SearchSpace, SearchSpaceParameter
 from rag_hpo_bench.utils.logging_utils import init_logger
 
@@ -21,11 +20,11 @@ logger = logging.getLogger(__name__)
 def create_search_space() -> SearchSpace:
     """
     Create the search space for RAG experiments.
-        
+
     Returns:
         SearchSpace with configured parameters
     """
-    
+
     parameters = [
         # Indexing parameters
         SearchSpaceParameter(
@@ -84,14 +83,14 @@ def create_algorithm_configs() -> list[AlgorithmConfig]:
             additional_params={"max_iterations": 10},
         ),
     ]
-    
+
     return algorithm_configs
 
 
 def parse_args() -> argparse.Namespace:
     """
     Parse command-line arguments.
-    
+
     Returns:
         Parsed arguments namespace
     """
@@ -109,13 +108,13 @@ def parse_args() -> argparse.Namespace:
 
 def main():
     """Main entry point for running HPO experiments."""
-    
+
     # Parse command-line arguments
     args = parse_args()
-    
+
     # Configure logging
     init_logger(level=logging.INFO)
-    
+
     # Define dataset pairs (tune and test)
     # Note: Split names must match the HuggingFace dataset: "Dev" for tuning, "Test" for testing
     # Create pairs for all available datasets
@@ -132,13 +131,13 @@ def main():
         )
         for dataset_name in DatasetName
     ]
-    
+
     # Create algorithm configurations
     algorithm_configs = create_algorithm_configs()
-    
+
     # Create search space
     search_space = create_search_space()
-    
+
     # Define optimization metrics (available in rag_configurations_summary.csv)
     # These metrics are used to evaluate and compare RAG configurations:
     # - LLMaaJ-AC: LLM as a Judge - Answer Correctness
@@ -150,7 +149,7 @@ def main():
         "Lexical-AC",
         "Lexical-FF",
     ]
-    
+
     # Create the ExperimentsRunner
     runner = ExperimentsRunner(
         search_space=search_space,
@@ -163,7 +162,7 @@ def main():
         clean_output_dir=False,
         max_experiments=args.max_experiments,
     )
-    
+
     # Log configuration
     total_experiments = len(runner.hpo_experiments)
     logger.info(f"Total experiments created: {total_experiments}")
@@ -175,15 +174,15 @@ def main():
     logger.info(f"Dataset pairs: {len(dataset_pairs)}")
     logger.info(f"Algorithm configs: {len(algorithm_configs)}")
     logger.info(f"Optimization metrics: {len(optimization_metrics)}")
-    
+
     # Run all experiments
     logger.info("Starting experiments...")
     results = runner.run()
-    
+
     # Report results
     successful_results = [r for r in results if r is not None]
     logger.info(f"Completed: {len(successful_results)}/{len(results)} experiments successfuly.")
-    
+
     return results
 
 

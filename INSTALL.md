@@ -4,7 +4,7 @@ This guide provides instructions for setting up the `rag-hpo-bench` project usin
 
 ## Prerequisites
 
-- Python 3.9 or higher
+- Python 3.12 or higher
 - [uv](https://github.com/astral-sh/uv) package manager
 
 ### Installing uv
@@ -40,7 +40,7 @@ cd rag-hpo-bench
 Create a virtual environment using `uv`:
 
 ```bash
-uv venv .venv --python 3.11
+uv venv .venv --python 3.12
 ```
 
 ### 3. Activate the Virtual Environment

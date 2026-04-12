@@ -9,8 +9,8 @@ from rag_hpo_bench.data_models import DatasetID
 from rag_hpo_bench.hpo.hpo_algorithm import HpoAlgorithmType
 from rag_hpo_bench.hpo.rag_runner import RagRunner
 from rag_hpo_bench.hpo.search_space import SearchSpace
-from rag_hpo_bench.hpo.tuner import Tuner
 from rag_hpo_bench.hpo.tune_and_test_runner import TuneAndTestRunner
+from rag_hpo_bench.hpo.tuner import Tuner
 
 logger = logging.getLogger(__name__)
 
@@ -46,11 +46,7 @@ class HpoExperiment:
         # before pop() make a copy to avoid affecting objects that also
         # have access to this dict
         algorithm_params = deepcopy(self.algorithm_params)
-        num_seeds = (
-            algorithm_params.pop("num_seeds")
-            if "num_seeds" in algorithm_params
-            else None
-        )
+        num_seeds = algorithm_params.pop("num_seeds") if "num_seeds" in algorithm_params else None
         assert not (
             algorithm_type == HpoAlgorithmType.GRID and num_seeds is not None
         ), f"Can not set HPO Algorithm to be {algorithm_type.value} and num_seeds is not None (num_seeds = {num_seeds})."

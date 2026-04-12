@@ -112,9 +112,7 @@ class MultiplePatternResults:
         if with_predictions:
             for pattern_result in self.patterns_results:
                 assert pattern_result.name != ""
-                pattern_result.write_results_files(
-                    directory / f"{pattern_result.name}.csv"
-                )
+                pattern_result.write_results_files(directory / f"{pattern_result.name}.csv")
         self._results_summary.to_csv(self.file_name(directory, file_name))
 
     @staticmethod
@@ -124,17 +122,13 @@ class MultiplePatternResults:
 
         # Add the parameters used in each pattern
         per_pattern_parameters = pd.DataFrame(
-            [
-                pattern.pattern_parameters.get_path_to_values_dict()
-                for pattern in patterns_results
-            ]
+            [pattern.pattern_parameters.get_path_to_values_dict() for pattern in patterns_results]
         )
         results_summary = pd.concat([results_summary, per_pattern_parameters], axis=1)
 
         # Add metric stats
         all_patterns_evaluation_stats = [
-            pattern_results.get_evaluation_stats()
-            for pattern_results in patterns_results
+            pattern_results.get_evaluation_stats() for pattern_results in patterns_results
         ]
         metric_and_stat_to_score = [
             {
@@ -149,12 +143,10 @@ class MultiplePatternResults:
         )
 
         results_summary["input_tokens"] = [
-            pattern.evaluated_benchmark["input_tokens"].mean()
-            for pattern in patterns_results
+            pattern.evaluated_benchmark["input_tokens"].mean() for pattern in patterns_results
         ]
         results_summary["output_tokens"] = [
-            pattern.evaluated_benchmark["output_tokens"].mean()
-            for pattern in patterns_results
+            pattern.evaluated_benchmark["output_tokens"].mean() for pattern in patterns_results
         ]
 
         return results_summary

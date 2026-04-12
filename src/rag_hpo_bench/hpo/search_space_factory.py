@@ -1,9 +1,10 @@
+from rageval.pipeline.api.data_model import ModelProvider
+
 from rag_hpo_bench.hpo.search_space import (
     RagParameterName,
     SearchSpace,
     SearchSpaceParameter,
 )
-from rageval.pipeline.api.data_model import ModelProvider
 
 _DATA_PIPELINE = "data_pipeline"
 _INFERENCE_PIPELINE = "inference_pipeline"

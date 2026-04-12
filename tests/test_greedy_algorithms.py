@@ -1,14 +1,13 @@
 """
 Tests for Greedy HPO algorithms (GreedyMHPO and GreedyRHPO).
 """
-import pytest
-from unittest.mock import MagicMock
 
-from rag_hpo_bench.hpo.hpo_algorithm import GreedyMHPO, GreedyRHPO, HpoAlgorithmType
+import pytest
+
+from rag_hpo_bench.hpo.hpo_algorithm import GreedyMHPO, GreedyRHPO
 from rag_hpo_bench.hpo.pattern_results import PatternResults
 from rag_hpo_bench.hpo.search_space import (
     PatternParameters,
-    RagParameter,
     RagParameterName,
     SearchSpace,
     SearchSpaceParameter,
@@ -21,24 +20,16 @@ def sample_search_space():
     return SearchSpace(
         parameters=[
             SearchSpaceParameter(
-                path=["indexing", "chunking", "chunk_size"], 
-                values=[256, 512, 1024]
+                path=["indexing", "chunking", "chunk_size"], values=[256, 512, 1024]
             ),
+            SearchSpaceParameter(path=["indexing", "chunking", "chunk_overlap"], values=[50, 100]),
             SearchSpaceParameter(
-                path=["indexing", "chunking", "chunk_overlap"], 
-                values=[50, 100]
+                path=["indexing", "embedding", "embedding_model"], values=["model-a", "model-b"]
             ),
+            SearchSpaceParameter(path=["inference", "retrieval", "top_k"], values=[3, 5, 10]),
             SearchSpaceParameter(
-                path=["indexing", "embedding", "embedding_model"], 
-                values=["model-a", "model-b"]
-            ),
-            SearchSpaceParameter(
-                path=["inference", "retrieval", "top_k"], 
-                values=[3, 5, 10]
-            ),
-            SearchSpaceParameter(
-                path=["inference", "generation", "generative_model"], 
-                values=["gen-model-1", "gen-model-2"]
+                path=["inference", "generation", "generative_model"],
+                values=["gen-model-1", "gen-model-2"],
             ),
         ]
     )
@@ -48,7 +39,7 @@ def sample_search_space():
 def mock_objective_function():
     """
     Create a mock objective function that returns predictable scores.
-    
+
     The scoring logic (HIGHER IS BETTER):
     - Smaller chunk_size is better (256 > 512 > 1024)
     - Smaller chunk_overlap is better (50 > 100)
@@ -57,7 +48,7 @@ def mock_objective_function():
     - gen-model-1 is better than gen-model-2
     """
     import pandas as pd
-    
+
     def objective_function(pattern_parameters: PatternParameters) -> PatternResults:
         # Extract parameter values
         params_dict = {}
@@ -66,69 +57,71 @@ def mock_objective_function():
             if isinstance(param_name, str):
                 param_name = RagParameterName(param_name)
             params_dict[param_name] = param.value
-        
+
         # Calculate score based on parameter values (HIGHER IS BETTER)
         score = 0.5  # Base score
-        
+
         # Chunk size: smaller is better (add points for better values)
         if params_dict.get(RagParameterName.CHUNK_SIZE) == 256:
             score += 0.1
         elif params_dict.get(RagParameterName.CHUNK_SIZE) == 512:
             score += 0.05
         # 1024 adds nothing (worst)
-        
+
         # Chunk overlap: smaller is better
         if params_dict.get(RagParameterName.CHUNK_OVERLAP) == 50:
             score += 0.05
         # 100 adds nothing (worst)
-        
+
         # Embedding model: model-a is better
         if params_dict.get(RagParameterName.EMBEDDING_MODEL) == "model-a":
             score += 0.1
         # model-b adds nothing (worst)
-        
+
         # Top-k: smaller is better
         if params_dict.get(RagParameterName.TOP_K) == 3:
             score += 0.1
         elif params_dict.get(RagParameterName.TOP_K) == 5:
             score += 0.05
         # 10 adds nothing (worst)
-        
+
         # Generative model: gen-model-1 is better
         if params_dict.get(RagParameterName.GENERATIVE_MODEL) == "gen-model-1":
             score += 0.1
         # gen-model-2 adds nothing (worst)
-        
+
         # Create a proper PatternResults object with required fields
-        evaluated_benchmark = pd.DataFrame([{
-            "q_id": "test_q1",
-            "question": "test question",
-            "ground_truths": ["test answer"],
-            "ground_truths_context_ids": ["ctx1"],
-            "prompt": "test prompt",
-            "prompt_tokens": 10,
-            "answer": "test answer",
-            "output_tokens": 5,
-            "input_tokens": 10,
-        }])
-        
-        metric_stats = {
-            "test_metric": {"mean": score, "std": 0.0}
-        }
-        
+        evaluated_benchmark = pd.DataFrame(
+            [
+                {
+                    "q_id": "test_q1",
+                    "question": "test question",
+                    "ground_truths": ["test answer"],
+                    "ground_truths_context_ids": ["ctx1"],
+                    "prompt": "test prompt",
+                    "prompt_tokens": 10,
+                    "answer": "test answer",
+                    "output_tokens": 5,
+                    "input_tokens": 10,
+                }
+            ]
+        )
+
+        metric_stats = {"test_metric": {"mean": score, "std": 0.0}}
+
         return PatternResults(
             pattern_parameters=pattern_parameters,
             evaluated_benchmark=evaluated_benchmark,
             metric_stats=metric_stats,
-            name="Pattern_0"
+            name="Pattern_0",
         )
-    
+
     return objective_function
 
 
 class TestGreedyAlgorithmsCommon:
     """Common tests for both GreedyMHPO and GreedyRHPO algorithms."""
-    
+
     @pytest.mark.parametrize("algorithm_class", [GreedyMHPO, GreedyRHPO])
     def test_search_finds_optimal_config(
         self, algorithm_class, sample_search_space, mock_objective_function
@@ -141,23 +134,22 @@ class TestGreedyAlgorithmsCommon:
             max_iterations=20,
             seed=42,
         )
-        
+
         # Run search
         results = greedy_algo.search()
-        
+
         # Verify results
         assert results is not None
         assert results.size() <= 20  # Should not exceed max_iterations
         assert results.size() > 0  # Should have at least one result
-        
+
         # Get best configuration
         best_configs = results.get_best_configs(
-            metric_id="test_metric",
-            num_best_configs_to_consider=1
+            metric_id="test_metric", num_best_configs_to_consider=1
         )
         assert len(best_configs) == 1
         assert best_configs[0] is not None
-    
+
     @pytest.mark.parametrize("algorithm_class", [GreedyMHPO, GreedyRHPO])
     def test_max_iterations_respected(
         self, algorithm_class, sample_search_space, mock_objective_function
@@ -171,19 +163,19 @@ class TestGreedyAlgorithmsCommon:
             max_iterations=max_iter,
             seed=42,
         )
-        
+
         results = greedy_algo.search()
-        
+
         # Should not exceed max_iterations
         assert results.size() <= max_iter
-    
+
     @pytest.mark.parametrize("algorithm_class", [GreedyMHPO, GreedyRHPO])
     def test_seed_reproducibility(
         self, algorithm_class, sample_search_space, mock_objective_function
     ):
         """Test that same seed produces same results."""
         seed = 123
-        
+
         # Run 1
         greedy_algo1 = algorithm_class(
             search_space=sample_search_space,
@@ -193,7 +185,7 @@ class TestGreedyAlgorithmsCommon:
             seed=seed,
         )
         results1 = greedy_algo1.search()
-        
+
         # Run 2 with same seed
         greedy_algo2 = algorithm_class(
             search_space=sample_search_space,
@@ -203,14 +195,14 @@ class TestGreedyAlgorithmsCommon:
             seed=seed,
         )
         results2 = greedy_algo2.search()
-        
+
         # Results should be identical
         assert results1.size() == results2.size()
 
 
 class TestGreedyMHPO:
     """Test suite for GreedyMHPO (Model-first greedy algorithm)."""
-    
+
     def test_parameter_order(self, sample_search_space, mock_objective_function):
         """Test that GreedyMHPO optimizes parameters in model-first order."""
         greedy_m = GreedyMHPO(
@@ -220,7 +212,7 @@ class TestGreedyMHPO:
             max_iterations=20,
             seed=42,
         )
-        
+
         # Verify parameter order
         expected_order = [
             RagParameterName.GENERATIVE_MODEL,
@@ -230,10 +222,8 @@ class TestGreedyMHPO:
             RagParameterName.TOP_K,
         ]
         assert greedy_m.get_parameter_order() == expected_order
-    
-    def test_optimizes_generative_model_first(
-        self, sample_search_space, mock_objective_function
-    ):
+
+    def test_optimizes_generative_model_first(self, sample_search_space, mock_objective_function):
         """Test that GreedyMHPO optimizes generative model first."""
         greedy_m = GreedyMHPO(
             search_space=sample_search_space,
@@ -242,21 +232,20 @@ class TestGreedyMHPO:
             max_iterations=20,
             seed=42,
         )
-        
+
         results = greedy_m.search()
         best_configs = results.get_best_configs(
-            metric_id="test_metric",
-            num_best_configs_to_consider=1
+            metric_id="test_metric", num_best_configs_to_consider=1
         )
         best_params = best_configs[0].get_path_to_values_dict()
-        
+
         # Should optimize generative model first (model-first order)
         assert best_params["inference.generation.generative_model"] == "gen-model-1"
 
 
 class TestGreedyRHPO:
     """Test suite for GreedyRHPO (Retrieval-first greedy algorithm)."""
-    
+
     def test_parameter_order(self, sample_search_space, mock_objective_function):
         """Test that GreedyRHPO optimizes parameters in retrieval-first order."""
         greedy_r = GreedyRHPO(
@@ -266,7 +255,7 @@ class TestGreedyRHPO:
             max_iterations=20,
             seed=42,
         )
-        
+
         # Verify parameter order
         expected_order = [
             RagParameterName.EMBEDDING_MODEL,
@@ -276,10 +265,8 @@ class TestGreedyRHPO:
             RagParameterName.TOP_K,
         ]
         assert greedy_r.get_parameter_order() == expected_order
-    
-    def test_optimizes_embedding_model_first(
-        self, sample_search_space, mock_objective_function
-    ):
+
+    def test_optimizes_embedding_model_first(self, sample_search_space, mock_objective_function):
         """Test that GreedyRHPO optimizes embedding model first."""
         greedy_r = GreedyRHPO(
             search_space=sample_search_space,
@@ -288,26 +275,25 @@ class TestGreedyRHPO:
             max_iterations=20,
             seed=42,
         )
-        
+
         results = greedy_r.search()
         best_configs = results.get_best_configs(
-            metric_id="test_metric",
-            num_best_configs_to_consider=1
+            metric_id="test_metric", num_best_configs_to_consider=1
         )
         best_params = best_configs[0].get_path_to_values_dict()
-        
+
         # Should optimize embedding model first (retrieval-first order)
         assert best_params["indexing.embedding.embedding_model"] == "model-a"
 
 
 class TestGreedyAlgorithmsComparison:
     """Test suite comparing GreedyMHPO and GreedyRHPO behavior."""
-    
+
     def test_both_algorithms_converge(self, sample_search_space, mock_objective_function):
         """Test that both greedy algorithms converge to good solutions."""
         seed = 100
         max_iter = 25
-        
+
         # Run both algorithms
         greedy_m = GreedyMHPO(
             search_space=sample_search_space,
@@ -317,7 +303,7 @@ class TestGreedyAlgorithmsComparison:
             seed=seed,
         )
         results_m = greedy_m.search()
-        
+
         greedy_r = GreedyRHPO(
             search_space=sample_search_space,
             optimization_metric_id="test_metric",
@@ -326,28 +312,25 @@ class TestGreedyAlgorithmsComparison:
             seed=seed,
         )
         results_r = greedy_r.search()
-        
+
         # Get best configs from both
         best_m = results_m.get_best_configs(
-            metric_id="test_metric",
-            num_best_configs_to_consider=1
+            metric_id="test_metric", num_best_configs_to_consider=1
         )[0]
-        
+
         best_r = results_r.get_best_configs(
-            metric_id="test_metric",
-            num_best_configs_to_consider=1
+            metric_id="test_metric", num_best_configs_to_consider=1
         )[0]
-        
+
         # Both should find good configurations
         # (exact values may differ due to different optimization orders)
         assert best_m is not None
         assert best_r is not None
-        
+
         # Both should have reasonable scores (> 0.5 based on our mock function)
         best_m_params = best_m.get_path_to_values_dict()
         best_r_params = best_r.get_path_to_values_dict()
-        
+
         # Verify both found good parameter values
         assert best_m_params["inference.generation.generative_model"] == "gen-model-1"
         assert best_r_params["indexing.embedding.embedding_model"] == "model-a"
-

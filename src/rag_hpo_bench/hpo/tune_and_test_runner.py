@@ -8,8 +8,8 @@ from rag_hpo_bench.hpo.hpo_algorithm import HpoAlgorithmType
 from rag_hpo_bench.hpo.hpo_results import HpoResults
 from rag_hpo_bench.hpo.pattern_results import MultiplePatternResults
 from rag_hpo_bench.hpo.search_space import PatternParameters
-from rag_hpo_bench.hpo.tuner import Tuner
 from rag_hpo_bench.hpo.test_results import TestResults
+from rag_hpo_bench.hpo.tuner import Tuner
 
 logger = logging.getLogger(__name__)
 
@@ -88,8 +88,7 @@ class TuneAndTestRunner:
 
         per_iteration_best_configs = []
         is_grid = (
-            HpoAlgorithmType(self.tuner.algorithm_params["algorithm_type"])
-            == HpoAlgorithmType.GRID
+            HpoAlgorithmType(self.tuner.algorithm_params["algorithm_type"]) == HpoAlgorithmType.GRID
         )
         if is_grid:
             # For grid search test only one best config.
@@ -110,16 +109,12 @@ class TuneAndTestRunner:
 
         test_runner = self.tuner.rag_runner
         best_configs_results = []
-        for max_iteration, best_config in enumerate(
-            per_iteration_best_configs, start=1
-        ):
+        for max_iteration, best_config in enumerate(per_iteration_best_configs, start=1):
             logger.debug(
                 f"Running on test, best configuration for metric '{optimization_metric_id}' "
                 f"at max_iteration {max_iteration} is : '{best_config}'."
             )
-            best_config_result = test_runner.run(
-                self.test_dataset, pattern_parameters=best_config
-            )
+            best_config_result = test_runner.run(self.test_dataset, pattern_parameters=best_config)
             if best_config_result:
                 best_config_result.name = f"best_till_iteration_{max_iteration}"
                 best_configs_results.append(best_config_result)
@@ -137,7 +132,7 @@ class TuneAndTestRunner:
     ) -> HpoResults | TestResults | MultiplePatternResults:
         """
         Run tune and test, optionally with multiple seeds.
-        
+
         If num_seeds is set, runs the experiment multiple times with different seeds
         and returns MultiplePatternResults. Otherwise, runs once and returns
         HpoResults or TestResults.
@@ -150,10 +145,8 @@ class TuneAndTestRunner:
         all_seeds_results_list = []
         num_runs = len(self.seeds)
         base_output_path = Path(self.tuner.output_path)
-        logger.info(
-            f"Running multi-seed experiment with {num_runs} runs, seeds: '{self.seeds}'."
-        )
-        
+        logger.info(f"Running multi-seed experiment with {num_runs} runs, seeds: '{self.seeds}'.")
+
         for seed_i in range(num_runs):
             seed = self.seeds[seed_i]
             self.tuner.output_path = base_output_path / f"seed_{seed}"
@@ -161,7 +154,7 @@ class TuneAndTestRunner:
                 f"Running tune and test {seed_i+1} out of {len(self.seeds)} "
                 f"(with seed '{seed}')"
             )
-            tuner_params_with_seed = dict(tuner_params) if tuner_params else dict()
+            tuner_params_with_seed = dict(tuner_params) if tuner_params else {}
             tuner_params_with_seed["seed"] = seed
             single_seed_result = self._run_single_seed(tuner_params_with_seed)
             all_seeds_results_list.append(single_seed_result)
