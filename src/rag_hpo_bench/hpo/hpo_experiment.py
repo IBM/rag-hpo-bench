@@ -63,7 +63,7 @@ class HpoExperiment:
             if clean_output_dir:
                 shutil.rmtree(output_path)
             else:
-                logger.warning(
+                logger.debug(
                     f"Output directory {output_path} exists and contains results before the run!"
                 )
         output_path.mkdir(parents=True, exist_ok=True)

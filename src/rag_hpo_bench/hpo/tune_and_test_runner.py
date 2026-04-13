@@ -6,7 +6,7 @@ from pathlib import Path
 from rag_hpo_bench.data_models import DatasetID
 from rag_hpo_bench.hpo.hpo_algorithm import HpoAlgorithmType
 from rag_hpo_bench.hpo.hpo_results import HpoResults
-from rag_hpo_bench.hpo.pattern_results import MultiplePatternResults
+from rag_hpo_bench.hpo.pattern_results import MultiplePatternResults, MultiSeedTestResults
 from rag_hpo_bench.hpo.search_space import PatternParameters
 from rag_hpo_bench.hpo.test_results import TestResults
 from rag_hpo_bench.hpo.tuner import Tuner
@@ -159,11 +159,11 @@ class TuneAndTestRunner:
             single_seed_result = self._run_single_seed(tuner_params_with_seed)
             all_seeds_results_list.append(single_seed_result)
 
-        all_seeds_results = MultiplePatternResults.concat(all_seeds_results_list)
+        all_seeds_results = MultiSeedTestResults.concat(all_seeds_results_list)
         all_seeds_results.to_csv(
             directory=base_output_path,
-            file_name="test_multi_seed_results.csv",
             with_predictions=False,
+            index_name="iteration_index",
         )
         logger.info(f"All seeds results written to '{base_output_path}'.")
         return all_seeds_results
