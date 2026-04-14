@@ -1,10 +1,13 @@
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 import pandas as pd
 
 from rag_hpo_bench.hpo.search_space import PatternParameters
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -93,7 +96,7 @@ class MultiplePatternResults:
         return file_path
 
     @classmethod
-    def from_csv(cls, directory: Path, file_name=None) -> "MultiplePatternResults":
+    def from_csv(cls, directory: Path, file_name=None) -> "Self":
         file_path = cls.file_path(directory, file_name)
         return cls(
             _results_summary=pd.read_csv(file_path),
@@ -107,13 +110,25 @@ class MultiplePatternResults:
             patterns_results=patterns_results,
         )
 
-    def to_csv(self, directory: Path, file_name: str = None, with_predictions=True):
+    def to_csv(
+        self,
+        directory: Path,
+        file_name: str = None,
+        with_predictions=True,
+        index_name: str | None = None,
+    ):
         directory.mkdir(parents=True, exist_ok=True)
         if with_predictions:
             for pattern_result in self.patterns_results:
                 assert pattern_result.name != ""
                 pattern_result.write_results_files(directory / f"{pattern_result.name}.csv")
-        self._results_summary.to_csv(self.file_name(directory, file_name))
+
+        # Set index name if provided
+        results_to_write = self._results_summary.copy()
+        if index_name is not None:
+            results_to_write.index.name = index_name
+
+        results_to_write.to_csv(self.file_name(directory, file_name))
 
     @staticmethod
     def _create_results_summary(patterns_results: list[PatternResults]) -> pd.DataFrame:
@@ -155,11 +170,11 @@ class MultiplePatternResults:
         for key, value in params.items():
             self._results_summary[key] = value
 
-    @staticmethod
-    def concat(tune_results: list["MultiplePatternResults"]):
+    @classmethod
+    def concat(cls, tune_results: list["MultiplePatternResults"]):
         frames = [result._results_summary for result in tune_results]
 
-        return MultiplePatternResults(
+        return cls(
             _results_summary=pd.concat(frames),
             patterns_results=[
                 pattern_result
@@ -167,3 +182,69 @@ class MultiplePatternResults:
                 for pattern_result in tune_result.patterns_results
             ],
         )
+
+
+@dataclass
+class MultiSeedTestResults(MultiplePatternResults):
+    """
+    Results from multi-seed test runs, providing aggregated statistics per iteration.
+    """
+
+    default_file_name: str = "test_multi_seed_results"
+
+    def aggregate_by_iteration(
+        self,
+        analyzed_metric_name: str,
+        analyzed_metric_short_name: str,
+    ) -> list[dict]:
+        """Aggregate multi-seed test results by iteration index.
+
+        Groups results by iteration_index and computes statistics (mean, std) for the
+        specified metric. Also identifies the most common best configurations per iteration.
+
+        Args:
+            analyzed_metric_name: Full name of the metric (e.g., "LLMaaJ-AC")
+            analyzed_metric_short_name: Short name of the metric (e.g., "AC")
+
+        Returns:
+            List of dictionaries containing metric results per iteration, including:
+            - Mean and std of the metric
+            - Iteration index
+            - Best configuration counts
+        """
+        metric_column = f"{analyzed_metric_name}_mean"
+
+        logger.info(f"Number of results is {len(self._results_summary[metric_column])}.")
+
+        # Group by iteration_index and compute statistics per group
+        grouped = self._results_summary.groupby("iteration_index")
+
+        results = []
+        for iteration_idx, group_df in grouped:
+            # Compute mean and std for the metric in this iteration group
+            metric_result = {
+                analyzed_metric_short_name: group_df[metric_column].mean(),
+                f"{analyzed_metric_short_name}_std": group_df[metric_column].std(),
+                "iteration_index": iteration_idx,
+            }
+            logger.info(f"metric_result for iteration {iteration_idx}: '{metric_result}'.")
+
+            # Compute best config counts for this iteration group
+            best_configs_params = group_df.apply(
+                lambda row: f"({row['data_pipeline.params.indexing.chunk_size']}, "
+                f"{row['data_pipeline.params.indexing.chunk_overlap']}, "
+                f"{row['data_pipeline.params.indexing.vector_space.embedding_model']}, "
+                f"{row['inference_pipeline.params.retrieval.top_k']}, "
+                f"{row['inference_pipeline.params.generation.generative_model']})",
+                axis=1,
+            )
+            best_config_counts = pd.Series(best_configs_params).value_counts()
+            for config_i, (config_params, config_count) in enumerate(
+                best_config_counts.items(), start=1
+            ):
+                metric_result[f"best_config_{config_i}"] = config_params
+                metric_result[f"best_config_{config_i}_count"] = config_count
+
+            results.append(metric_result)
+
+        return results
