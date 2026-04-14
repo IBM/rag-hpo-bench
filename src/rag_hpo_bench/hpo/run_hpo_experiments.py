@@ -281,27 +281,59 @@ def run_grid_search_on_test_sets(output_path: Path, clean_output: bool = False):
     )
 
 
-if __name__ == "__main__":
+def main(
+    output_path: Path | None = None, max_experiments: int | None = None, clean_output: bool = False
+):
+    """
+    Main function to run complete HPO experiment pipeline.
+
+    This function orchestrates the full HPO workflow:
+    1. Run HPO experiments with tune/test splits
+    2. Run grid search on test sets
+    3. Analyze and summarize results
+
+    Args:
+        output_path: Base path for experiment outputs (default: ./experiments_output)
+        max_experiments: Maximum number of experiments to run (default: run all)
+        clean_output: Whether to clean output directory before running (default: False)
+    """
     # Configure logging
     init_logger(level=logging.INFO)
 
-    # Parse command-line arguments
-    args = parse_args()
+    # Use default output path if not provided
+    if output_path is None:
+        output_path = Path("./experiments_output")
 
-    # Define output path once
-    output_path = Path("./experiments_output")
+    logger.info("Starting HPO experiment pipeline...")
+    logger.info(f"Output path: {output_path}")
+    logger.info(f"Max experiments: {max_experiments if max_experiments else 'unlimited'}")
+    logger.info(f"Clean output: {clean_output}")
 
     # Run HPO experiments
+    logger.info("Step 1/3: Running HPO experiments...")
     run_hpo(
         output_path=output_path,
-        max_experiments=args.max_experiments,
-        clean_output=args.clean_output,
+        max_experiments=max_experiments,
+        clean_output=clean_output,
     )
 
     # Run grid search on test sets
-    run_grid_search_on_test_sets(output_path=output_path, clean_output=args.clean_output)
+    logger.info("Step 2/3: Running grid search on test sets...")
+    run_grid_search_on_test_sets(output_path=output_path, clean_output=clean_output)
 
     # Analyze test results
-    logger.info("Analyzing test results...")
+    logger.info("Step 3/3: Analyzing test results...")
     run_analysis(base_results_path=output_path)
-    logger.info("Test results analysis complete")
+    logger.info("HPO experiment pipeline complete!")
+
+
+if __name__ == "__main__":
+    # Parse command-line arguments
+    args = parse_args()
+
+    # Run main pipeline
+    main(
+        output_path=Path("./experiments_output"),
+        max_experiments=args.max_experiments,
+        clean_output=args.clean_output,
+    )

@@ -32,15 +32,11 @@ class MetricDefinition(BaseModel):
 
 
 # Define the three metrics used in analysis
-LLMAAJ_AC = MetricDefinition(name="LLMaaJ-AC", display_name="Answer Correctness", short_name="AC")
+LLMAAJ_AC = MetricDefinition(name="LLMaaJ-AC", display_name="LLMaaJ-AC", short_name="AC")
 
-LEXICAL_AC = MetricDefinition(
-    name="Lexical-AC", display_name="Lexical Answer Correctness", short_name="LAC"
-)
+LEXICAL_AC = MetricDefinition(name="Lexical-AC", display_name="Lexical-AC", short_name="LAC")
 
-LEXICAL_FF = MetricDefinition(
-    name="Lexical-FF", display_name="Lexical Faithfulness", short_name="LF"
-)
+LEXICAL_FF = MetricDefinition(name="Lexical-FF", display_name="Lexical-FF", short_name="LF")
 
 
 def get_sampling_params(sampling_setup: str, dataset_name: DatasetName) -> DataSamplingParams:
