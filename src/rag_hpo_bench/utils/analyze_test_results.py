@@ -57,9 +57,9 @@ def get_sampling_params(sampling_setup: str, dataset_name: DatasetName) -> DataS
         return DataSamplingParams()
     elif sampling_setup == "sample":
         # Default sample configuration
-        return DataSamplingParams(question_limit=50)
+        return DataSamplingParams()
     elif sampling_setup == "max_150_questions":
-        return DataSamplingParams(question_limit=150)
+        return DataSamplingParams()
     else:
         # Try to parse as a custom configuration
         return DataSamplingParams()
@@ -69,11 +69,12 @@ def get_algorithm_setups() -> list[HpoAlgorithmType]:
     """Get list of algorithm setups to analyze.
 
     Returns:
-        List of HpoAlgorithmType values starting with random and greedy_m
+        List of HpoAlgorithmType values included in test result analysis
     """
     return [
         HpoAlgorithmType.RANDOM,
         HpoAlgorithmType.GREEDY_M,
+        HpoAlgorithmType.GREEDY_R,
     ]
 
 
@@ -94,39 +95,31 @@ def get_greedy_algorithm_setups(
 
 
 def get_grid_results(
-    sampling_setup: str,
     dataset_name: DatasetName,
     split: SplitType,
-    metric_short_name: str,
     base_results_path: Path,
 ) -> HpoResults:
     """Load grid search results for a specific configuration.
 
     Args:
-        sampling_setup: Type of sampling setup
         dataset_name: Dataset name enum
         split: Data split (Dev or Test)
-        metric_short_name: Short name of the metric
         base_results_path: Base path for experiment results
 
     Returns:
         HpoResults object containing the grid search results
     """
-    sampling_params = get_sampling_params(sampling_setup=sampling_setup, dataset_name=dataset_name)
-
     # Create DatasetID for the tune dataset
     tune_dataset = DatasetID(
         dataset_name=dataset_name,
         split=split,
-        sampling_params=sampling_params,
+        sampling_params=DataSamplingParams(),
     )
 
     grid_results_path = HpoExperiment.get_output_path(
         base_output_path=base_results_path,
         algorithm_type=HpoAlgorithmType.GRID,
-        optimization_metric_id=metric_short_name,
         tune_dataset=tune_dataset,
-        test_dataset=None,
     )
     logger.info(f"Loading grid results from '{grid_results_path}'..")
     grid_results_path = grid_results_path / "tuning"
@@ -182,8 +175,8 @@ def aggregate_multi_seed_results(
     tune_results_path = HpoExperiment.get_output_path(
         base_output_path=base_results_path,
         algorithm_type=algorithm_type,
-        optimization_metric_id=analyzed_metric.name,
         tune_dataset=tune_dataset,
+        optimization_metric_id=analyzed_metric.name,
         test_dataset=test_dataset,
     )
     logger.info(f"Reading results from '{tune_results_path}'...")
@@ -253,6 +246,8 @@ def analyze_test_results(
         dataset_test_analysis_path = (
             analysis_path / f"test_results_{metric_short_name}_{dataset_name}.csv"
         )
+        # Ensure the directory exists before saving
+        dataset_test_analysis_path.parent.mkdir(parents=True, exist_ok=True)
         dataset_results.to_csv(dataset_test_analysis_path)
         logger.info(
             f"Results for '{metric_short_name}' and '{dataset_name}' written to '{dataset_test_analysis_path}'."
@@ -297,6 +292,8 @@ def write_metric_results_for_paper(
     paper_metric_results = paper_metric_results.applymap(lambda v: f"{v * 100:.1f}")
 
     paper_metrics_output_path = analysis_path / f"test_results_for_paper_{metric_short_name}.csv"
+    # Ensure the directory exists before saving
+    paper_metrics_output_path.parent.mkdir(parents=True, exist_ok=True)
     paper_metric_results.to_csv(paper_metrics_output_path)
 
     paper_metrics_latex = paper_metric_results.to_latex()
@@ -311,6 +308,7 @@ def plot_performance_per_iteration(
     analyzed_metric: MetricDefinition,
     analysis_path: Path,
     base_results_path: Path,
+    with_sampling: bool,
 ):
     metric_short_name = analyzed_metric.short_name
     metric_display_name = analyzed_metric.display_name
@@ -380,74 +378,15 @@ def plot_performance_per_iteration(
             plot_test_grid = True
             if plot_test_grid:
                 test_grid_results = get_grid_results(
-                    sampling_setup="max_150_questions",
                     dataset_name=dataset,
                     split="Test",
-                    metric_short_name=metric_short_name,
                     base_results_path=base_results_path,
                 )
 
-                best_test_result = test_grid_results.tune_result[metric_internal_name].max()
+                best_test_result = test_grid_results._results_summary[
+                    f"{metric_internal_name}_mean"
+                ].max()
                 ax.axhline(y=best_test_result, color="black", linewidth=1.5, linestyle="--")
-
-            # lowest_test_result = test_grid_results.tune_result[metric_internal_name].min()
-            # ax.axhline(y=lowest_test_result, color="black", linewidth=1, linestyle="--")
-
-            # greedy_algorithms = get_greedy_algorithm_setups(metric_short_name, with_sampling)
-            # sampling_setups = ["full"]
-            # if with_sampling:
-            #     sampling_setups.append("sample")
-            # for algorithm_label, algorithm_id in greedy_algorithms:
-            #     for sampling_setup in sampling_setups:
-            #         # Parse algorithm_id to extract algorithm type and optimization metric
-            #         algorithm_parts = algorithm_id.split("_", 1)
-            #         algorithm_type_str = algorithm_parts[0]
-            #         remaining = algorithm_parts[1] if len(algorithm_parts) > 1 else ""
-            #         if remaining.startswith("metric-"):
-            #             # Extract just the metric part after "metric-"
-            #             metric_part = remaining.split("_")[0]
-            #             optimization_metric_id = metric_part.replace("metric-", "")
-            #         else:
-            #             optimization_metric_id = metric_short_name
-
-            #         algorithm_type = HpoAlgorithmType(algorithm_type_str)
-
-            #         # Create DatasetID for the tune dataset
-            #         sampling_params = get_sampling_params(
-            #             sampling_setup=sampling_setup, dataset_name=dataset
-            #         )
-            #         tune_dataset = DatasetID(
-            #             dataset_name=dataset,
-            #             split="Dev",
-            #             sampling_params=sampling_params,
-            #         )
-
-            #         greedy_algorithm_results_path = HpoExperiment.get_output_path(
-            #             base_output_path=base_results_path,
-            #             algorithm_type=algorithm_type,
-            #             optimization_metric_id=optimization_metric_id,
-            #             tune_dataset=tune_dataset,
-            #             test_dataset=None,
-            #         )
-
-            #         greedy_results = read_all_seeds_test_results(
-            #             greedy_algorithm_results_path
-            #         )._results_summary
-            #         greedy_mean_metric_performance = greedy_results.groupby("iteration_index")[
-            #             metric_internal_name
-            #         ].mean()
-
-            #         label, color, linestyle, linewidth = get_plot_props(
-            #             algorithm_label, sampling_setup if with_sampling else None
-            #         )
-            #         ax.plot(
-            #             iterations_range,
-            #             greedy_mean_metric_performance[:10],
-            #             label=label,
-            #             color=color,
-            #             linestyle=linestyle,
-            #             linewidth=linewidth,
-            #         )
 
             ymin, ymax = ax.get_ylim()
             ax.vlines(
@@ -462,10 +401,10 @@ def plot_performance_per_iteration(
 
             if single_dataset_fig:
                 ax.legend(loc="lower right", fontsize=6, ncol=2)
-                test_results_path = metric_analysis_path / f"test_results_{dataset.value}.png"
+                test_results_path = metric_analysis_path / f"test_results_{dataset}.png"
                 plt.savefig(test_results_path, dpi=300)
                 logger.info(f"test results per iteration written to '{test_results_path}'.")
-                test_results_path = metric_analysis_path / f"test_results_{dataset.value}.pdf"
+                test_results_path = metric_analysis_path / f"test_results_{dataset}.pdf"
                 plt.savefig(test_results_path, dpi=300)
             last_dataset = dataset_index == num_datasets
             if not single_dataset_fig and last_dataset:
@@ -491,6 +430,8 @@ def plot_performance_per_iteration(
                 / ".."
                 / f"test-results_data-{sampling_setup_name}_{metric_short_name}.png"
             )
+            # Ensure the directory exists before saving
+            test_results_path.parent.mkdir(parents=True, exist_ok=True)
             plt.savefig(test_results_path, dpi=600)
             logger.info(f"test results per iteration written to '{test_results_path}'.")
             test_results_path = (
@@ -509,23 +450,24 @@ def get_plot_props(algorithm_label, sampling_setup):
 
     linestyle = "-"
     linewidth = 2
-    color = "Yellow"
-    if "grid" in label.lower():
-        # linestyle = "--"
+    color = "yellow"  # Default color (lowercase for matplotlib)
+
+    # Check algorithm type using HpoAlgorithmType enum values
+    label_lower = label.lower()
+    if HpoAlgorithmType.GRID.value in label_lower:
         linewidth = 1.5
         color = "red"
-    if "TPE" in label:
-        color = "green"
-    if "Random" in label:
+    elif HpoAlgorithmType.RANDOM.value in label_lower:
         color = "blue"
-    if "Greedy-M" in label:
+    elif HpoAlgorithmType.GREEDY_M.value in label_lower:
         color = "purple"
-    if "Greedy-R" in label:
+    elif HpoAlgorithmType.GREEDY_R.value in label_lower:
         color = "pink"
-    if "Greedy-R-CC" in label:
-        color = "orange"
-    if "sample" in label.lower():
+
+    # Adjust linestyle for sampling
+    if "sample" in label_lower:
         linestyle = ":"
+
     return label, color, linestyle, linewidth
 
 
@@ -560,12 +502,19 @@ def analyze_test_results_main(
         analysis_path=analysis_path,
     )
 
-    plot_performance_per_iteration(test_results, analyzed_metric, analysis_path, base_results_path)
+    plot_performance_per_iteration(
+        test_results, analyzed_metric, analysis_path, base_results_path, with_sampling
+    )
 
 
-if __name__ == "__main__":
-    init_logger()
-    base_results_path = Path(__file__).parent.parent.parent.parent / "experiments_output"
+def run_analysis(base_results_path: Path | None = None):
+    """Run analysis on test results for all metrics.
+
+    Args:
+        base_results_path: Base path for experiment results. If None, uses default path.
+    """
+    if base_results_path is None:
+        base_results_path = Path(__file__).parent.parent.parent.parent / "experiments_output"
 
     analyzed_metrics = [
         LLMAAJ_AC,
@@ -575,3 +524,8 @@ if __name__ == "__main__":
     for with_sampling in [False]:
         for analyzed_metric in analyzed_metrics:
             analyze_test_results_main(with_sampling, analyzed_metric, base_results_path)
+
+
+if __name__ == "__main__":
+    init_logger()
+    run_analysis()

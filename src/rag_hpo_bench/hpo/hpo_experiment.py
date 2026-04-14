@@ -31,20 +31,22 @@ class HpoExperiment:
     def get_output_path(
         base_output_path: Path,
         algorithm_type: HpoAlgorithmType,
-        optimization_metric_id: str,
         tune_dataset: DatasetID,
-        test_dataset: DatasetID | None,
+        optimization_metric_id: str | None = None,
+        test_dataset: DatasetID | None = None,
         clean_output_dir: bool = False,
     ) -> Path:
         """
         Create the output path for HPO experiment results.
 
-        The path structure is: base_output_path / algorithm_type / optimization_metric_id / tune_dataset / [test_dataset]
+        The path structure is:
+        - With optimization metric: base_output_path / algorithm_type / optimization_metric_id / tune_dataset / [test_dataset]
+        - Without optimization metric (grid search): base_output_path / algorithm_type / tune_dataset / [test_dataset]
 
         Args:
             base_output_path: Base directory for output
             algorithm_type: The HPO algorithm type
-            optimization_metric_id: The metric being optimized
+            optimization_metric_id: The metric being optimized (empty string for grid search without optimization)
             tune_dataset: Dataset used for tuning
             test_dataset: Optional dataset used for testing
             clean_output_dir: If True, remove existing directory contents
@@ -53,7 +55,9 @@ class HpoExperiment:
             Path: The created output path
         """
         output_path = base_output_path / algorithm_type.value
-        output_path = output_path / optimization_metric_id
+        # Only include optimization_metric_id in path if it's not empty
+        if optimization_metric_id:
+            output_path = output_path / optimization_metric_id
         output_path = output_path / tune_dataset.as_string()
         if test_dataset:
             output_path = output_path / test_dataset.as_string()
@@ -75,8 +79,8 @@ class HpoExperiment:
         self.output_path = self.get_output_path(
             base_output_path=self.output_path,
             algorithm_type=algorithm_type,
-            optimization_metric_id=self.optimization_metric_id,
             tune_dataset=self.tune_dataset,
+            optimization_metric_id=self.optimization_metric_id,
             test_dataset=self.test_dataset,
             clean_output_dir=self.clean_output_dir,
         )

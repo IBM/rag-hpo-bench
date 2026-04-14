@@ -109,32 +109,57 @@ class ExperimentsRunner:
     def __post_init__(self):
         """Initialize and create all HPO experiments."""
         self.hpo_experiments: list[HpoExperiment] = []
+        self._validate_configuration()
         self._create_experiments()
+
+    def _validate_configuration(self):
+        """
+        Validate the configuration before creating experiments.
+
+        Raises:
+            ValueError: If optimization_metrics is empty and algorithm is not grid
+        """
+        if not self.optimization_metrics:
+            # Empty optimization_metrics is only allowed for grid search
+            for algorithm_config in self.algorithm_configs:
+                if algorithm_config.algorithm_type != "grid":
+                    raise ValueError(
+                        f"Empty optimization_metrics list is only allowed for grid search algorithm. "
+                        f"Found algorithm: {algorithm_config.algorithm_type}"
+                    )
+            logger.info(
+                "Running grid search without optimization metrics (evaluating all configurations)"
+            )
 
     def _create_experiments(self):
         """
         Create HpoExperiment instances for all combinations of:
         - dataset pairs
         - algorithm configs
-        - optimization metrics
+        - optimization metrics (if provided)
 
         Each combination creates a separate HPO experiment that will be run independently.
+        When optimization_metrics is empty, creates one experiment per dataset-algorithm pair.
         """
+        # Replace empty optimization_metrics with a list containing one empty string
+        optimization_metrics = self.optimization_metrics if self.optimization_metrics else [""]
+
         total_experiments = (
-            len(self.dataset_pairs) * len(self.algorithm_configs) * len(self.optimization_metrics)
+            len(self.dataset_pairs) * len(self.algorithm_configs) * len(optimization_metrics)
         )
 
         logger.info(
-            f"Creating {total_experiments} HPO experiments:\n"
+            f"Creating {total_experiments} HPO experiments"
+            f"{' (grid search without optimization)' if not self.optimization_metrics else ''}:\n"
             f"  - {len(self.dataset_pairs)} dataset pair(s)\n"
             f"  - {len(self.algorithm_configs)} algorithm config(s)\n"
-            f"  - {len(self.optimization_metrics)} optimization metric(s)"
+            f"  - {'No optimization metrics (evaluating all configurations)' if not self.optimization_metrics else f'{len(optimization_metrics)} optimization metric(s)'}"
         )
 
         experiment_count = 0
         for dataset_pair in self.dataset_pairs:
             for algorithm_config in self.algorithm_configs:
-                for optimization_metric in self.optimization_metrics:
+                for optimization_metric in optimization_metrics:
                     experiment_count += 1
 
                     # Create algorithm params dict
@@ -157,7 +182,8 @@ class ExperimentsRunner:
 
                     logger.debug(
                         f"Created experiment {experiment_count}/{total_experiments}: "
-                        f"{dataset_pair}, {algorithm_config}, metric={optimization_metric}"
+                        f"{dataset_pair}, {algorithm_config}, "
+                        f"{'metric=' + optimization_metric if optimization_metric else 'no optimization metric'}"
                     )
 
         logger.info(f"Successfully created {len(self.hpo_experiments)} HPO experiments")
