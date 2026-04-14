@@ -24,6 +24,10 @@ This repository accompanies our paper [An Analysis of Hyper-Parameter Optimizati
 ## Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/IBM/rag-hpo-bench.git
+cd rag-hpo-bench
+
 # Install the package
 uv pip install -e .
 ```
