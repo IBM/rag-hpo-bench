@@ -31,19 +31,18 @@ def test_main_function_full_pipeline(test_output_path):
     """
     Integration test that runs the complete HPO experiment pipeline.
 
-    This test runs the actual main() function with minimal configuration
-    to verify the entire pipeline works end-to-end:
+    This test runs the actual main() function to verify the entire
+    pipeline works end-to-end:
     1. HPO experiments with tune/test splits
     2. Grid search on test sets
     3. Analysis and result summarization
 
-    The test uses max_experiments=1 to limit execution time while still
-    exercising all code paths.
+    This test runs all experiments to ensure complete coverage.
     """
-    # Run the full pipeline with minimal configuration
+    # Run the full pipeline with all experiments
     main(
         output_path=test_output_path,
-        max_experiments=1,  # Limit to 1 experiment for speed
+        max_experiments=None,  # Run all experiments
         clean_output=True,
     )
 
